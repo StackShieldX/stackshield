@@ -89,6 +89,9 @@ def _parse_whois(raw: str) -> WhoisInfo:
     )
 
 
+SUBPROCESS_TIMEOUT = 30
+
+
 async def get_whois_info(domain: str) -> WhoisInfo:
     try:
         proc = await asyncio.create_subprocess_exec(
@@ -96,9 +99,16 @@ async def get_whois_info(domain: str) -> WhoisInfo:
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
-        stdout, stderr = await proc.communicate()
+        stdout, stderr = await asyncio.wait_for(
+            proc.communicate(), timeout=SUBPROCESS_TIMEOUT,
+        )
         raw = stdout.decode(errors="replace")
         return _parse_whois(raw)
+    except asyncio.TimeoutError:
+        print(f"[whois] timeout for {domain}", file=sys.stderr)
+        proc.kill()
+        await proc.wait()
+        return WhoisInfo()
     except Exception as e:
         print(f"[whois] error for {domain}: {e}", file=sys.stderr)
         return WhoisInfo()
