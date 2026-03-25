@@ -21,6 +21,8 @@ class SubdomainStrategy(ABC):
 class SubfinderStrategy(SubdomainStrategy):
     """Discovers subdomains using subfinder (passive DNS sources)."""
 
+    SUBPROCESS_TIMEOUT = 120
+
     async def discover(self, domain: str) -> list[Subdomain]:
         try:
             proc = await asyncio.create_subprocess_exec(
@@ -28,8 +30,15 @@ class SubfinderStrategy(SubdomainStrategy):
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-            stdout, _ = await proc.communicate()
+            stdout, _ = await asyncio.wait_for(
+                proc.communicate(), timeout=self.SUBPROCESS_TIMEOUT,
+            )
             return self._parse(stdout.decode(errors="replace"))
+        except asyncio.TimeoutError:
+            print(f"[subfinder] timeout for {domain}", file=sys.stderr)
+            proc.kill()
+            await proc.wait()
+            return []
         except Exception as e:
             print(f"[subfinder] error for {domain}: {e}", file=sys.stderr)
             return []

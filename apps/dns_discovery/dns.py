@@ -52,25 +52,26 @@ async def main(domain: str) -> None:
 
     await asyncio.gather(*[bounded_dns(sub) for sub in all_subdomains])
 
-    # Phase 4: ASN lookup for every IP in A and AAAA records (bounded concurrency)
+    # Phase 4: ASN lookup for unique IPs in A and AAAA records (bounded concurrency)
     asn_sem = asyncio.Semaphore(ASN_CONCURRENCY)
 
     async def bounded_asn(ip: str):
         async with asn_sem:
             return await get_asn_info(ip)
 
-    asn_tasks = []
+    ip_to_records: dict[str, list] = {}
     for sub in all_subdomains:
         for record in sub.dns_records.a:
-            asn_tasks.append((record, bounded_asn(record.ip_address)))
+            ip_to_records.setdefault(record.ip_address, []).append(record)
         for record in sub.dns_records.aaaa:
-            asn_tasks.append((record, bounded_asn(record.ipv6_address)))
+            ip_to_records.setdefault(record.ipv6_address, []).append(record)
 
-    if asn_tasks:
-        records, coros = zip(*asn_tasks)
-        results = await asyncio.gather(*coros)
-        for record, asn_info in zip(records, results):
-            record.asn_info = asn_info
+    if ip_to_records:
+        unique_ips = list(ip_to_records.keys())
+        results = await asyncio.gather(*[bounded_asn(ip) for ip in unique_ips])
+        for ip, asn_info in zip(unique_ips, results):
+            for record in ip_to_records[ip]:
+                record.asn_info = asn_info
 
     # Phase 5: assemble and emit
     result = Domain(
