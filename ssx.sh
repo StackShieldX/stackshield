@@ -20,6 +20,7 @@ if [[ $# -eq 0 ]]; then
     echo ""
     echo "Available subcommands:"
     echo "  dns   DNS discovery — subdomains, WHOIS, DNS records"
+    echo "  ports Port scanning — discover open ports on targets"
     echo ""
     echo "Example:"
     echo "  ./ssx.sh dns -d example.com"
@@ -33,10 +34,13 @@ case "$SUBCOMMAND" in
     dns)
         docker run --rm "$IMAGE" python apps/dns_discovery/dns.py "$@"
         ;;
+    ports)
+        docker run --rm "$IMAGE" python apps/port_scan/port.py "$@"
+        ;;
     *)
         echo "Unknown subcommand: $SUBCOMMAND"
         echo ""
-        echo "Available subcommands: dns"
+        echo "Available subcommands: dns, ports"
         exit 1
         ;;
 esac

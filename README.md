@@ -13,6 +13,7 @@ The approach is **outside-in**: start from passive external recon and work inwar
 | Command | Description | Status |
 |---------|-------------|--------|
 | `dns`   | DNS discovery: subdomain enumeration, WHOIS, and DNS record extraction | stable |
+| `ports` | Port scanning: discover open TCP ports on target hosts | stable |
 
 ## Prerequisites
 
@@ -59,7 +60,9 @@ stackshield/
 ├── lib/           # Business logic and shared data models
 │   ├── common/
 │   │   └── entities/   # Pydantic models shared across tools
-│   └── dns_discovery/
+│   ├── dns_discovery/
+│   │   └── services/
+│   └── port_scan/
 │       └── services/
 ├── rules/         # Coding and operational standards
 ├── Dockerfile     # Kali-based container image
