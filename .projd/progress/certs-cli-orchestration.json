@@ -13,7 +13,7 @@
     "ruff check passes on the modified certs.py"
   ],
   "priority": 3,
-  "status": "in_progress",
+  "status": "complete",
   "branch": "agent/certs-cli-orchestration",
   "blocked_by": ["certs-cli-skeleton", "certs-ct-service", "certs-tls-service"],
   "notes": "This is the integration feature that brings the services together with the CLI."
