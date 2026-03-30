@@ -138,8 +138,6 @@ def _extract_spki(der: bytes) -> tuple[str, int]:
         key_type = _OID_TO_KEY_TYPE.get(oid_str, oid_str)
 
         # Skip past AlgorithmIdentifier to BIT STRING
-        bitstring_pos = ai_off + ai_len + (ai_off - spki_off - ai_len)
-        # Recalculate: AlgorithmIdentifier ends at ai_off + ai_len
         bitstring_pos = ai_off + ai_len
         if bitstring_pos >= spki_end:
             return key_type, 0
