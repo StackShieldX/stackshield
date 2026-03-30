@@ -14,6 +14,7 @@ The approach is **outside-in**: start from passive external recon and work inwar
 |---------|-------------|--------|
 | `dns`   | DNS discovery: subdomain enumeration, WHOIS, and DNS record extraction | stable |
 | `ports` | Port scanning: discover open TCP ports on target hosts | stable |
+| `certs` | Certificate discovery: CT log transparency and live TLS certificate analysis | stable |
 
 ## Prerequisites
 
@@ -60,6 +61,8 @@ stackshield/
 ├── lib/           # Business logic and shared data models
 │   ├── common/
 │   │   └── entities/   # Pydantic models shared across tools
+│   ├── certs/
+│   │   └── services/
 │   ├── dns_discovery/
 │   │   └── services/
 │   └── port_scan/
