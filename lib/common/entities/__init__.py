@@ -3,6 +3,7 @@ from .subdomain import SubdomainSource, DnsRecords, Subdomain
 from .whois_info import WhoisInfo
 from .domain import Domain
 from .port_result import PortEntry, PortScanResult
+from .cert_info import CTEntry, TLSCertInfo, CertsResult
 
 __all__ = [
     "ASNInfo",
@@ -21,4 +22,7 @@ __all__ = [
     "Domain",
     "PortEntry",
     "PortScanResult",
+    "CTEntry",
+    "TLSCertInfo",
+    "CertsResult",
 ]
