@@ -1,0 +1,20 @@
+{
+  "id": "certs-cli-orchestration",
+  "name": "CLI orchestration: mode selection and port scanner integration",
+  "description": "Wire the CT and TLS services into the certs CLI. In 'ct' mode: run CT discovery only. In 'tls' mode: TLS-scan provided targets. In 'all' mode: run CT discovery, then TLS-scan discovered hosts on port 443 (or user-specified ports). Support reading port scan JSON from stdin (--stdin) to extract host:port pairs as TLS targets. Assemble final CertsResult and print as JSON to stdout.",
+  "acceptance_criteria": [
+    "--mode ct runs only CT discovery and populates ct_entries in output, tls_results is empty",
+    "--mode tls requires either -d with hosts or --stdin with port scan JSON; runs TLS analysis only",
+    "--mode all runs CT discovery first, extracts subdomains, then TLS-scans them on port 443 (or -p ports)",
+    "--stdin reads PortScanResult JSON from stdin and extracts unique host:port pairs for TLS scanning",
+    "Pipeline works: ./ssx.sh ports -t host | ./ssx.sh certs -d example.com --mode tls --stdin",
+    "Output is a valid CertsResult JSON on stdout with all fields populated according to the mode",
+    "Progress messages go to stderr (e.g., '[certs] discovering CT entries...', '[certs] scanning TLS on N hosts')",
+    "ruff check passes on the modified certs.py"
+  ],
+  "priority": 3,
+  "status": "in_progress",
+  "branch": "agent/certs-cli-orchestration",
+  "blocked_by": ["certs-cli-skeleton", "certs-ct-service", "certs-tls-service"],
+  "notes": "This is the integration feature that brings the services together with the CLI."
+}
