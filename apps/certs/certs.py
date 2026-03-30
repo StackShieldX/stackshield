@@ -20,7 +20,11 @@ def _parse_ports(port_spec: str) -> list[int]:
     """
     if not port_spec:
         return [443]
-    return [int(p.strip()) for p in port_spec.split(",") if p.strip()]
+    try:
+        return [int(p.strip()) for p in port_spec.split(",") if p.strip()]
+    except ValueError:
+        print(f"[certs] invalid port specification: {port_spec}", file=sys.stderr)
+        sys.exit(1)
 
 
 def _parse_stdin_targets() -> list[tuple[str, int]]:
@@ -28,7 +32,11 @@ def _parse_stdin_targets() -> list[tuple[str, int]]:
     raw = sys.stdin.read()
     if not raw.strip():
         return []
-    data = json.loads(raw)
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        print(f"[certs] invalid JSON on stdin: {exc}", file=sys.stderr)
+        return []
     seen: set[tuple[str, int]] = set()
     targets: list[tuple[str, int]] = []
     for entry in data.get("results", []):
