@@ -1,0 +1,7 @@
+{
+  "id": "certs-ct-service",
+  "name": "CT log discovery service (crt.sh)",
+  "status": "in_progress",
+  "branch": "agent/certs-ct-service",
+  "blocked_by": ["certs-entities"]
+}
