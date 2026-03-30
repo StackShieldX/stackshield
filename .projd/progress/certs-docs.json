@@ -1,0 +1,18 @@
+{
+  "id": "certs-docs",
+  "name": "README and tool table updates",
+  "description": "Update the root README.md tools table to include the certs subcommand. Create apps/certs/README.md documenting Quick Start usage, all CLI flags, example commands (ct mode, tls mode, all mode, stdin pipeline), and the output JSON schema.",
+  "acceptance_criteria": [
+    "Root README.md tools table includes a row for 'certs' with description and 'stable' status",
+    "apps/certs/README.md exists with Quick Start section showing basic usage",
+    "apps/certs/README.md documents all CLI flags: -d, --mode, -p, --stdin",
+    "apps/certs/README.md includes example commands for each mode (ct, tls, all)",
+    "apps/certs/README.md includes an example of piping port scan output into certs",
+    "apps/certs/README.md includes the output JSON schema (CertsResult fields)"
+  ],
+  "priority": 4,
+  "status": "complete",
+  "branch": "agent/certs-docs",
+  "blocked_by": ["certs-cli-orchestration"],
+  "notes": ""
+}
