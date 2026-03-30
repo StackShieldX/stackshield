@@ -43,24 +43,29 @@ stackshield/
 ## Running Tools
 
 ```bash
-# Build the image once (or after dependency changes)
-docker build -t stackshield .
+# Build and run via Make
+make build
+make dns DOMAIN=example.com
 
-# Run any tool
-chmod +x ssx.sh
+# Or directly via ssx.sh
 ./ssx.sh dns -d example.com
 ```
+
+Run `make help` for all available targets.
 
 ---
 
 ## Adding a New Tool
 
-1. Create `apps/<tool_name>/` with a CLI entry point (e.g. `port.py`)
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the full checklist. In short:
+
+1. Create `apps/<tool_name>/` with a CLI entry point (e.g. `certs.py`)
 2. Create `lib/<tool_name>/services/` with service files wrapping external tools
 3. Add new entities to `lib/common/entities/` if they are shared; otherwise keep them local to the service
 4. Add a new `case` to `ssx.sh` mapping the subcommand to the Python file
-5. Update the root `README.md` tools table with the new subcommand
-6. Add a `README.md` in `apps/<tool_name>/` documenting Quick Start and Output Schema
+5. Add a `make` target in the Makefile under the Tool Shortcuts section
+6. Update the root `README.md` tools table with the new subcommand
+7. Add a `README.md` in `apps/<tool_name>/` documenting Quick Start and Output Schema
 
 ---
 
