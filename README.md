@@ -14,6 +14,7 @@ The approach is **outside-in**: start from passive external recon and work inwar
 |---------|-------------|--------|
 | `dns`   | DNS discovery: subdomain enumeration, WHOIS, and DNS record extraction | stable |
 | `ports` | Port scanning: discover open TCP ports on target hosts | stable |
+| `certs` | Certificate discovery: CT log transparency and live TLS certificate analysis | stable |
 
 ## Prerequisites
 
@@ -27,49 +28,38 @@ git clone https://github.com/StackShieldX/stackshield.git
 cd stackshield
 
 # 2. Build the Docker image
-docker build -t stackshield .
+make build
 
 # 3. Run a tool
-chmod +x ssx.sh
-./ssx.sh dns -d example.com
+make dns DOMAIN=example.com
 ```
 
 ## Usage
 
-All tools are invoked through `ssx.sh`:
-
-```
-./ssx.sh <subcommand> [flags]
+```bash
+make dns DOMAIN=example.com
+make ports TARGETS=10.0.0.1 PORTS=80,443
+make certs DOMAIN=example.com MODE=all
 ```
 
 Output is always JSON on stdout. Redirect or pipe as needed:
 
 ```bash
 # Save to a file
-./ssx.sh dns -d example.com > results.json
+make dns DOMAIN=example.com > results.json
 
 # Pretty-print with jq
 ./ssx.sh dns -d example.com | jq '.subdomains[].name'
+
+# Pipe tools together
+./ssx.sh ports -t 10.0.0.1 | ./ssx.sh certs -d example.com --mode tls --stdin
 ```
 
-## Architecture
+Run `make help` for all available targets. See each tool's README in `apps/<tool>/` for detailed flag documentation.
 
-```
-stackshield/
-├── apps/          # CLI entry points (one per tool)
-├── lib/           # Business logic and shared data models
-│   ├── common/
-│   │   └── entities/   # Pydantic models shared across tools
-│   ├── dns_discovery/
-│   │   └── services/
-│   └── port_scan/
-│       └── services/
-├── rules/         # Coding and operational standards
-├── Dockerfile     # Kali-based container image
-└── ssx.sh         # Unified CLI wrapper
-```
+## Contributing
 
-See [CLAUDE.md](CLAUDE.md) for contributor guidance and architecture details.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, architecture, and how to add new tools.
 
 ## License
 

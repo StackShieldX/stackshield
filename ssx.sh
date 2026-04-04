@@ -15,12 +15,23 @@ set -euo pipefail
 
 IMAGE="stackshield"
 
+# Detect if we're already inside the container (/.dockerenv exists in Docker).
+# If so, run commands directly instead of wrapping in docker run.
+if [[ -f /.dockerenv ]]; then
+    RUN=""
+    RUN_STDIN=""
+else
+    RUN="docker run --rm $IMAGE"
+    RUN_STDIN="docker run --rm -i $IMAGE"
+fi
+
 if [[ $# -eq 0 ]]; then
     echo "Usage: ssx.sh <subcommand> [args...]"
     echo ""
     echo "Available subcommands:"
     echo "  dns   DNS discovery — subdomains, WHOIS, DNS records"
     echo "  ports Port scanning — discover open ports on targets"
+    echo "  certs Certificate discovery — CT logs and TLS connections"
     echo ""
     echo "Example:"
     echo "  ./ssx.sh dns -d example.com"
@@ -32,15 +43,18 @@ shift
 
 case "$SUBCOMMAND" in
     dns)
-        docker run --rm "$IMAGE" python apps/dns_discovery/dns.py "$@"
+        $RUN python apps/dns_discovery/dns.py "$@"
         ;;
     ports)
-        docker run --rm "$IMAGE" python apps/port_scan/port.py "$@"
+        $RUN python apps/port_scan/port.py "$@"
+        ;;
+    certs)
+        ${RUN_STDIN:-$RUN} python apps/certs/certs.py "$@"
         ;;
     *)
         echo "Unknown subcommand: $SUBCOMMAND"
         echo ""
-        echo "Available subcommands: dns, ports"
+        echo "Available subcommands: dns, ports, certs"
         exit 1
         ;;
 esac

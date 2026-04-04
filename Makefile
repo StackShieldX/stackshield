@@ -1,4 +1,4 @@
-.PHONY: help build rebuild clean dev shell test test-v lint fmt dns ports
+.PHONY: help build rebuild clean dev shell test test-v lint fmt dns ports certs
 
 IMAGE := stackshield
 MOUNT := -v $(CURDIR)/apps:/app/apps -v $(CURDIR)/lib:/app/lib
@@ -66,3 +66,9 @@ ifndef TARGETS
 	$(error TARGETS is required. Usage: make ports TARGETS=10.0.0.1)
 endif
 	./ssx.sh ports -t $(TARGETS) $(if $(RESOLVE_PORTS),-p $(RESOLVE_PORTS)) $(if $(SCAN_TYPE),--scan-type $(SCAN_TYPE))
+
+certs: ## Run certificate discovery (DOMAIN=example.com [MODE=ct|tls|all] [PORTS=443,8443])
+ifndef DOMAIN
+	$(error DOMAIN is required. Usage: make certs DOMAIN=example.com)
+endif
+	./ssx.sh certs -d $(DOMAIN) $(if $(MODE),--mode $(MODE)) $(if $(PORTS),-p $(PORTS))

@@ -64,3 +64,10 @@ Thumbs.db
 
 # Logs
 *.log
+
+# projd infrastructure (solo mode)
+.projd/
+.claude/CLAUDE.md
+.claude/hooks/
+.claude/skills/
+lefthook.yml
