@@ -6,6 +6,7 @@ import asyncio
 import json
 import sys
 
+from lib.common.db import get_store, should_save
 from lib.common.entities import Domain, Subdomain, SubdomainSource
 from lib.dns_discovery.services.asn_service import get_asn_info
 from lib.dns_discovery.services.dns_service import get_dns_records
@@ -17,7 +18,7 @@ DNS_CONCURRENCY = 20
 ASN_CONCURRENCY = 30
 
 
-async def main(domain: str) -> None:
+async def main(domain: str) -> Domain:
     domain = domain.strip().lower()
 
     # Phase 1: run whois and subfinder in parallel
@@ -81,6 +82,7 @@ async def main(domain: str) -> None:
     )
 
     print(json.dumps(result.model_dump(mode="json"), indent=2))
+    return result
 
 
 if __name__ == "__main__":
@@ -92,10 +94,27 @@ if __name__ == "__main__":
         required=True,
         help="Target domain (e.g. example.com)",
     )
+    save_group = parser.add_mutually_exclusive_group()
+    save_group.add_argument(
+        "--save", action="store_true", default=False,
+        help="Force saving results to the store (overrides auto_save=false in config)",
+    )
+    save_group.add_argument(
+        "--no-save", action="store_true", default=False,
+        help="Skip saving results (overrides auto_save=true in config)",
+    )
     args = parser.parse_args()
 
     try:
-        asyncio.run(main(args.domain))
+        result = asyncio.run(main(args.domain))
     except KeyboardInterrupt:
         print("\nInterrupted.", file=sys.stderr)
         sys.exit(1)
+
+    do_save, config = should_save(save_flag=args.save, no_save_flag=args.no_save)
+    if do_save:
+        store = get_store(_config=config)
+        if store is not None:
+            with store:
+                scan_id = store.save_scan(tool="dns", result=result, domain=args.domain)
+                print(f"[db] saved scan {scan_id}", file=sys.stderr)

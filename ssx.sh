@@ -15,14 +15,20 @@ set -euo pipefail
 
 IMAGE="stackshield"
 
+# Persistent data directory (config + database).
+# Override with SSX_DATA_DIR to use a custom location.
+DATA_DIR="${SSX_DATA_DIR:-$HOME/.stackshield}"
+
 # Detect if we're already inside the container (/.dockerenv exists in Docker).
 # If so, run commands directly instead of wrapping in docker run.
 if [[ -f /.dockerenv ]]; then
     RUN=""
     RUN_STDIN=""
 else
-    RUN="docker run --rm $IMAGE"
-    RUN_STDIN="docker run --rm -i $IMAGE"
+    mkdir -p "$DATA_DIR"
+    VOLUME="-v $DATA_DIR:/data"
+    RUN="docker run --rm $VOLUME $IMAGE"
+    RUN_STDIN="docker run --rm -i $VOLUME $IMAGE"
 fi
 
 if [[ $# -eq 0 ]]; then
@@ -32,6 +38,7 @@ if [[ $# -eq 0 ]]; then
     echo "  dns   DNS discovery — subdomains, WHOIS, DNS records"
     echo "  ports Port scanning — discover open ports on targets"
     echo "  certs Certificate discovery — CT logs and TLS connections"
+    echo "  db    Query, delete, or purge stored scan results"
     echo ""
     echo "Example:"
     echo "  ./ssx.sh dns -d example.com"
@@ -51,10 +58,13 @@ case "$SUBCOMMAND" in
     certs)
         ${RUN_STDIN:-$RUN} python apps/certs/certs.py "$@"
         ;;
+    db)
+        $RUN python apps/db_query/query.py "$@"
+        ;;
     *)
         echo "Unknown subcommand: $SUBCOMMAND"
         echo ""
-        echo "Available subcommands: dns, ports, certs"
+        echo "Available subcommands: dns, ports, certs, db"
         exit 1
         ;;
 esac

@@ -30,6 +30,8 @@ Run `make help` to see all targets. The key ones:
 | `dns` | Run DNS discovery | `make dns DOMAIN=example.com` |
 | `ports` | Run port scan | `make ports TARGETS=10.0.0.1 PORTS=80,443` |
 | `certs` | Run certificate discovery | `make certs DOMAIN=example.com MODE=all` |
+| `db-list` | List stored scans | `make db-list TOOL=dns` |
+| `db-latest` | Show latest scan result | `make db-latest TOOL=dns DOMAIN=example.com` |
 
 Tools can also be invoked directly via `ssx.sh`:
 
@@ -46,7 +48,8 @@ stackshield/
 ├── apps/              # CLI entry points -- one folder per tool
 ├── lib/               # Shared business logic
 │   ├── common/
-│   │   └── entities/  # Pydantic data models shared across all tools
+│   │   ├── entities/  # Pydantic data models shared across all tools
+│   │   └── db/        # Persistence layer (ScanStore interface + backends)
 │   └── <tool_name>/
 │       └── services/  # Business logic for that specific tool
 ├── rules/             # Coding and operational standards
@@ -58,6 +61,7 @@ stackshield/
 ### Key Conventions
 
 - **Entities** live in `lib/common/entities/` -- all Pydantic models shared across services go here.
+- **Persistence** lives in `lib/common/db/` -- abstract `ScanStore` interface, SQLite default backend, and factory/config logic.
 - **Service logic** lives in `lib/<tool>/services/` -- each file wraps a CLI tool or external source.
 - **CLI entry points** live in `apps/<tool>/` -- responsible only for arg parsing and orchestration.
 - **All output goes to stdout as JSON.** Logs, warnings, and errors go to stderr.
@@ -72,6 +76,16 @@ stackshield/
 5. Add a `make` target in the Makefile under the Tool Shortcuts section
 6. Update the root `README.md` tools table with the new subcommand
 7. Add a `README.md` in `apps/<tool_name>/` documenting Quick Start and Output Schema
+8. Add `--save`/`--no-save` flags and persistence support (see existing tools for the pattern)
+
+## Adding a New Store Backend
+
+To add a persistence backend beyond SQLite:
+
+1. Create `lib/common/db/<backend>_store.py` implementing the `ScanStore` ABC from `lib/common/db/base.py`
+2. Register the class path in the `_BACKENDS` dict in `lib/common/db/__init__.py`
+3. Add a `[store.<backend>]` section to the default config template in `lib/common/db/__init__.py`
+4. Add the backend's dependencies to `pyproject.toml`
 
 ## Standards
 

@@ -52,3 +52,6 @@ RUN uv sync
 # Add venv to PATH so `python` resolves to the venv Python
 ENV PATH="/app/.venv/bin:$PATH"
 ENV PYTHONPATH="/app"
+
+# Default data directory for persistence (mounted as a volume at runtime)
+RUN mkdir -p /data

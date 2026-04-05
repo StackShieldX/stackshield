@@ -8,6 +8,7 @@ import asyncio
 import json
 import sys
 
+from lib.common.db import get_store, should_save
 from lib.common.entities import CertsResult
 from lib.certs.services.ct_service import discover_ct_entries, extract_subdomains
 from lib.certs.services.tls_service import analyze_tls_batch
@@ -37,17 +38,11 @@ def _parse_stdin_targets() -> list[tuple[str, int]]:
     except json.JSONDecodeError as exc:
         print(f"[certs] invalid JSON on stdin: {exc}", file=sys.stderr)
         return []
-    seen: set[tuple[str, int]] = set()
-    targets: list[tuple[str, int]] = []
-    for entry in data.get("results", []):
-        pair = (entry["host"], entry["port"])
-        if pair not in seen:
-            seen.add(pair)
-            targets.append(pair)
-    return targets
+    return _extract_targets(data)
 
 
-async def main(domain: str, mode: str, ports: str, use_stdin: bool) -> None:
+async def main(domain: str, mode: str, ports: str, use_stdin: bool,
+               db_targets: list[tuple[str, int]] | None = None) -> CertsResult:
     """Discover certificates for a domain via CT logs and/or TLS connections."""
     ct_entries = []
     tls_results = []
@@ -67,7 +62,19 @@ async def main(domain: str, mode: str, ports: str, use_stdin: bool) -> None:
     if mode in ("tls", "all"):
         tls_targets: list[tuple[str, int]] = []
 
-        if use_stdin:
+        if db_targets is not None:
+            if db_targets:
+                print(
+                    f"[certs] loaded {len(db_targets)} targets from store",
+                    file=sys.stderr,
+                )
+                tls_targets.extend(db_targets)
+            else:
+                print(
+                    "[certs] port scan in store returned 0 targets",
+                    file=sys.stderr,
+                )
+        elif use_stdin:
             stdin_targets = _parse_stdin_targets()
             print(
                 f"[certs] read {len(stdin_targets)} targets from stdin",
@@ -75,8 +82,8 @@ async def main(domain: str, mode: str, ports: str, use_stdin: bool) -> None:
             )
             tls_targets.extend(stdin_targets)
 
-        if mode == "tls" and not use_stdin:
-            # In tls-only mode without stdin, scan the domain on specified ports
+        if mode == "tls" and not use_stdin and db_targets is None:
+            # In tls-only mode without stdin/db, scan the domain on specified ports
             for port in port_list:
                 tls_targets.append((domain, port))
 
@@ -109,6 +116,81 @@ async def main(domain: str, mode: str, ports: str, use_stdin: bool) -> None:
     )
 
     print(json.dumps(result.model_dump(mode="json"), indent=2))
+    return result
+
+
+def _extract_targets(data: dict) -> list[tuple[str, int]]:
+    """Extract unique (host, port) pairs from scan result data."""
+    seen: set[tuple[str, int]] = set()
+    targets: list[tuple[str, int]] = []
+    for entry in data.get("results", []):
+        host = entry.get("host")
+        port = entry.get("port")
+        if host is None or port is None:
+            print(f"[certs] skipping entry missing host/port: {entry}", file=sys.stderr)
+            continue
+        pair = (host, port)
+        if pair not in seen:
+            seen.add(pair)
+            targets.append(pair)
+    return targets
+
+
+def _load_db_targets(domain: str) -> list[tuple[str, int]] | None:
+    """Try to load port scan results from the store for use as TLS targets.
+
+    Resolves the domain to IPs via the latest DNS scan, then finds port
+    scans whose targets include any of those IPs.
+
+    Returns None if the store is unavailable or no results are found,
+    allowing the caller to fall back to default behavior.
+    """
+    store = get_store()
+    if store is None:
+        return None
+
+    with store:
+        dns_data = store.load_latest_scan(tool="dns", domain=domain)
+        if dns_data is None:
+            print(f"[certs] no DNS scan in store for {domain}, skipping DB lookup", file=sys.stderr)
+            return None
+
+        ips: set[str] = set()
+        for sub in dns_data.get("subdomains", []):
+            for a in sub.get("dns_records", {}).get("a", []):
+                if a.get("ip_address"):
+                    ips.add(a["ip_address"])
+            for aaaa in sub.get("dns_records", {}).get("aaaa", []):
+                if aaaa.get("ipv6_address"):
+                    ips.add(aaaa["ipv6_address"])
+
+        if not ips:
+            print(f"[certs] DNS scan for {domain} has no A/AAAA records, skipping DB lookup", file=sys.stderr)
+            return None
+
+        print(
+            f"[certs] resolved {domain} to {len(ips)} IP(s) from DNS scan",
+            file=sys.stderr,
+        )
+
+        all_targets: list[tuple[str, int]] = []
+        seen: set[tuple[str, int]] = set()
+        for ip in sorted(ips):
+            port_data = store.load_latest_scan(tool="ports", target=ip)
+            if port_data is not None:
+                for pair in _extract_targets(port_data):
+                    if pair not in seen:
+                        seen.add(pair)
+                        all_targets.append(pair)
+
+    if not all_targets:
+        print(
+            f"[certs] no port scan results in store for IPs of {domain}, skipping DB lookup",
+            file=sys.stderr,
+        )
+        return None
+
+    return all_targets
 
 
 if __name__ == "__main__":
@@ -137,10 +219,42 @@ if __name__ == "__main__":
         dest="use_stdin",
         help="Read port scan JSON from stdin for TLS target discovery",
     )
+    parser.add_argument(
+        "--no-db",
+        action="store_true",
+        dest="no_db",
+        help="Skip automatic DB lookup of prior scan results",
+    )
+    save_group = parser.add_mutually_exclusive_group()
+    save_group.add_argument(
+        "--save", action="store_true", default=False,
+        help="Force saving results to the store (overrides auto_save=false in config)",
+    )
+    save_group.add_argument(
+        "--no-save", action="store_true", default=False,
+        help="Skip saving results (overrides auto_save=true in config)",
+    )
     args = parser.parse_args()
 
+    # DB lookup is the default — skip it when stdin, explicit ports, or --no-db
+    db_targets = None
+    if not args.use_stdin and not args.ports and not args.no_db:
+        db_targets = _load_db_targets(args.domain)
+
     try:
-        asyncio.run(main(args.domain, args.mode, args.ports, args.use_stdin))
+        result = asyncio.run(
+            main(args.domain, args.mode, args.ports, args.use_stdin, db_targets)
+        )
     except KeyboardInterrupt:
         print("\nInterrupted.", file=sys.stderr)
         sys.exit(1)
+
+    do_save, config = should_save(save_flag=args.save, no_save_flag=args.no_save)
+    if do_save:
+        store = get_store(_config=config)
+        if store is not None:
+            with store:
+                scan_id = store.save_scan(
+                    tool="certs", result=result, domain=args.domain,
+                )
+                print(f"[db] saved scan {scan_id}", file=sys.stderr)

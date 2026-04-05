@@ -1,7 +1,8 @@
-.PHONY: help build rebuild clean dev shell test test-v lint fmt dns ports certs
+.PHONY: help build rebuild clean dev shell test test-v lint fmt dns ports certs db-list db-latest
 
 IMAGE := stackshield
 MOUNT := -v $(CURDIR)/apps:/app/apps -v $(CURDIR)/lib:/app/lib
+DATA_MOUNT := -v $(HOME)/.stackshield:/data
 
 help: ## Show available targets
 	@echo "Usage: make <target>"
@@ -30,10 +31,10 @@ clean: ## Remove the Docker image
 # -- Development --
 
 dev: ## Interactive shell with local code mounted
-	docker run --rm -it $(MOUNT) $(IMAGE) /bin/bash
+	docker run --rm -it $(MOUNT) $(DATA_MOUNT) $(IMAGE) /bin/bash
 
 shell: ## Interactive shell inside a fresh container
-	docker run --rm -it $(IMAGE) /bin/bash
+	docker run --rm -it $(DATA_MOUNT) $(IMAGE) /bin/bash
 
 # -- Testing --
 
@@ -72,3 +73,12 @@ ifndef DOMAIN
 	$(error DOMAIN is required. Usage: make certs DOMAIN=example.com)
 endif
 	./ssx.sh certs -d $(DOMAIN) $(if $(MODE),--mode $(MODE)) $(if $(PORTS),-p $(PORTS))
+
+db-list: ## List stored scans ([TOOL=dns] [DOMAIN=example.com])
+	./ssx.sh db list $(if $(TOOL),--tool $(TOOL)) $(if $(DOMAIN),--domain $(DOMAIN))
+
+db-latest: ## Show latest scan result (TOOL=dns [DOMAIN=example.com])
+ifndef TOOL
+	$(error TOOL is required. Usage: make db-latest TOOL=dns)
+endif
+	./ssx.sh db latest --tool $(TOOL) $(if $(DOMAIN),--domain $(DOMAIN))
