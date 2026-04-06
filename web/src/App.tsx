@@ -1,20 +1,19 @@
 import { Routes, Route } from "react-router-dom";
-
-function Home() {
-  return (
-    <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold text-white mb-4">StackShield</h1>
-        <p className="text-gray-400">Security assessment platform</p>
-      </div>
-    </div>
-  );
-}
+import Layout from "./components/Layout";
+import Dashboard from "./pages/Dashboard";
+import NewScan from "./pages/NewScan";
+import History from "./pages/History";
+import Pipelines from "./pages/Pipelines";
 
 export default function App() {
   return (
     <Routes>
-      <Route path="/" element={<Home />} />
+      <Route element={<Layout />}>
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/scan" element={<NewScan />} />
+        <Route path="/history" element={<History />} />
+        <Route path="/pipelines" element={<Pipelines />} />
+      </Route>
     </Routes>
   );
 }
