@@ -57,6 +57,29 @@ export interface HealthResponse {
   status: string;
 }
 
+/** Pipeline stage detail returned by GET /api/pipelines/:id. */
+export interface PipelineStageDetail {
+  node_id: string;
+  tool: string;
+  params: Record<string, string>;
+  status: string;
+  started_at: string | null;
+  finished_at: string | null;
+  result_json: Record<string, unknown> | null;
+  error: string | null;
+}
+
+/** Full pipeline detail returned by GET /api/pipelines/:id. */
+export interface PipelineDetail {
+  pipeline_id: string;
+  status: string;
+  execution_order: string[];
+  stages: Record<string, PipelineStageDetail>;
+  started_at: string;
+  finished_at: string | null;
+  error: string | null;
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -146,6 +169,15 @@ export function listRunningScans(): Promise<RunningScanList> {
 /** Get detail for a specific run by ID. */
 export function getRunDetail(scanId: string): Promise<ScanDetail> {
   return request<ScanDetail>(`/api/runs/${encodeURIComponent(scanId)}`);
+}
+
+// ---------------------------------------------------------------------------
+// Pipeline endpoints
+// ---------------------------------------------------------------------------
+
+/** Fetch full pipeline detail by ID. */
+export function getPipeline(pipelineId: string): Promise<PipelineDetail> {
+  return request<PipelineDetail>(`/api/pipelines/${encodeURIComponent(pipelineId)}`);
 }
 
 // ---------------------------------------------------------------------------

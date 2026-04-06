@@ -14,6 +14,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { Link } from "react-router-dom";
 import {
   ReactFlow,
   addEdge,
@@ -651,12 +652,22 @@ export default function Pipelines() {
           )}
 
           {(phase === "complete" || phase === "failed") && (
-            <button
-              onClick={handleReset}
-              className="w-full rounded-lg border border-surface-700 px-4 py-2 text-sm font-medium text-surface-300 transition-colors hover:bg-surface-800"
-            >
-              Back to Editor
-            </button>
+            <>
+              {phase === "complete" && pipelineId && (
+                <Link
+                  to={`/pipelines/${pipelineId}/results`}
+                  className="block w-full rounded-lg bg-accent-600 px-4 py-2 text-center text-sm font-medium text-white transition-colors hover:bg-accent-500"
+                >
+                  View Results
+                </Link>
+              )}
+              <button
+                onClick={handleReset}
+                className="w-full rounded-lg border border-surface-700 px-4 py-2 text-sm font-medium text-surface-300 transition-colors hover:bg-surface-800"
+              >
+                Back to Editor
+              </button>
+            </>
           )}
 
           {isRunning && (
