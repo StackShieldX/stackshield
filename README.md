@@ -16,6 +16,7 @@ The approach is **outside-in**: start from passive external recon and work inwar
 | `ports` | Port scanning: discover open TCP ports on target hosts | stable |
 | `certs` | Certificate discovery: CT log transparency and live TLS certificate analysis | stable |
 | `db`    | Query, inspect, and manage stored scan results | stable |
+| `web`   | Web UI dashboard for running tools and viewing results | beta |
 
 ## Prerequisites
 
@@ -136,6 +137,30 @@ make certs DOMAIN=example.com
 ```
 
 Use `--no-db` to skip the automatic DB lookup, or `--stdin` / `-p` to provide targets explicitly (which also skips the DB lookup).
+
+## Web UI
+
+StackShield includes a web dashboard for running tools and viewing results in the browser.
+
+### Quick Start
+
+```bash
+# Build the Docker image (includes frontend build)
+make build
+
+# Launch the web UI
+make web
+```
+
+Open [http://localhost:8080](http://localhost:8080) in your browser. The API health check is available at `/api/health`.
+
+The web server runs on port 8080 inside the container and is mapped to the same port on the host. Scan data is persisted to `~/.stackshield/` (or the path set by `SSX_DATA_DIR`).
+
+You can also launch the web UI directly with `ssx.sh`:
+
+```bash
+./ssx.sh web
+```
 
 ## Contributing
 

@@ -39,6 +39,7 @@ if [[ $# -eq 0 ]]; then
     echo "  ports Port scanning — discover open ports on targets"
     echo "  certs Certificate discovery — CT logs and TLS connections"
     echo "  db    Query, delete, or purge stored scan results"
+    echo "  web   Launch the StackShield web UI on port 8080"
     echo ""
     echo "Example:"
     echo "  ./ssx.sh dns -d example.com"
@@ -61,10 +62,18 @@ case "$SUBCOMMAND" in
     db)
         $RUN python apps/db_query/query.py "$@"
         ;;
+    web)
+        if [[ -f /.dockerenv ]]; then
+            python apps/web/server.py "$@"
+        else
+            mkdir -p "$DATA_DIR"
+            docker run --rm -p 8080:8080 -v "$DATA_DIR:/data" "$IMAGE" python apps/web/server.py "$@"
+        fi
+        ;;
     *)
         echo "Unknown subcommand: $SUBCOMMAND"
         echo ""
-        echo "Available subcommands: dns, ports, certs, db"
+        echo "Available subcommands: dns, ports, certs, db, web"
         exit 1
         ;;
 esac
