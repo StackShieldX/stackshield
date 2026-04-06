@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 
 from apps.web.services.tool_runner import ScanStatus, runner
 
-router = APIRouter(prefix="/api/scans", tags=["scans"])
+router = APIRouter(prefix="/api/runs", tags=["runs"])
 
 # ---------------------------------------------------------------------------
 # Request / Response schemas
