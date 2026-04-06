@@ -46,6 +46,15 @@ Tools can also be invoked directly via `ssx.sh`:
 ```
 stackshield/
 ├── apps/              # CLI entry points -- one folder per tool
+│   └── web/           # Web UI backend (FastAPI)
+│       ├── server.py  # ASGI entry point
+│       ├── routers/   # REST + WebSocket endpoints
+│       └── services/  # Pipeline runner, tool runner
+├── web/               # Web UI frontend (React + TypeScript + Vite)
+│   └── src/
+│       ├── pages/     # Route-level components (Dashboard, Pipelines, etc.)
+│       ├── components/# Shared UI components (pipeline builder, result panels)
+│       └── api/       # API client
 ├── lib/               # Shared business logic
 │   ├── common/
 │   │   ├── entities/  # Pydantic data models shared across all tools
@@ -64,6 +73,8 @@ stackshield/
 - **Persistence** lives in `lib/common/db/` -- abstract `ScanStore` interface, SQLite default backend, and factory/config logic.
 - **Service logic** lives in `lib/<tool>/services/` -- each file wraps a CLI tool or external source.
 - **CLI entry points** live in `apps/<tool>/` -- responsible only for arg parsing and orchestration.
+- **Web backend** lives in `apps/web/` -- FastAPI server with routers for pipelines, scans, targets, and tool execution. Pipeline runner orchestrates multi-tool workflows with WebSocket progress.
+- **Web frontend** lives in `web/` -- React + TypeScript + Vite app with TailwindCSS. Run `npm run dev` from `web/` for local development.
 - **All output goes to stdout as JSON.** Logs, warnings, and errors go to stderr.
 - **Everything runs in Docker** via `ssx.sh`. No tool should require local installation.
 

@@ -7,7 +7,7 @@ import json
 import sys
 
 from lib.common.db import get_store, should_save
-from lib.common.entities import Domain, Subdomain, SubdomainSource
+from lib.common.entities import Domain, Subdomain
 from lib.dns_discovery.services.asn_service import get_asn_info
 from lib.dns_discovery.services.dns_service import get_dns_records
 from lib.dns_discovery.services.subdomain_service import discover_subdomains
@@ -36,7 +36,9 @@ async def main(domain: str) -> Domain:
             subdomains_by_name[name] = sub
         else:
             # Merge sources from subfinder into the existing entry
-            existing = {(s.strategy, s.source) for s in subdomains_by_name[name].sources}
+            existing = {
+                (s.strategy, s.source) for s in subdomains_by_name[name].sources
+            }
             for src in sub.sources:
                 if (src.strategy, src.source) not in existing:
                     subdomains_by_name[name].sources.append(src)
@@ -90,17 +92,22 @@ if __name__ == "__main__":
         description="Discover subdomains, WHOIS info, and DNS records for a target domain.",
     )
     parser.add_argument(
-        "-d", "--domain",
+        "-d",
+        "--domain",
         required=True,
         help="Target domain (e.g. example.com)",
     )
     save_group = parser.add_mutually_exclusive_group()
     save_group.add_argument(
-        "--save", action="store_true", default=False,
+        "--save",
+        action="store_true",
+        default=False,
         help="Force saving results to the store (overrides auto_save=false in config)",
     )
     save_group.add_argument(
-        "--no-save", action="store_true", default=False,
+        "--no-save",
+        action="store_true",
+        default=False,
         help="Skip saving results (overrides auto_save=true in config)",
     )
     args = parser.parse_args()

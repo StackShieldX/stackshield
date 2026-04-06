@@ -1,11 +1,20 @@
 from pydantic import BaseModel, Field
 
-from .dns_records import ARecord, AAAARecord, CNAMERecord, MXRecord, NSRecord, TXTRecord, SOARecord, PTRRecord
+from .dns_records import (
+    ARecord,
+    AAAARecord,
+    CNAMERecord,
+    MXRecord,
+    NSRecord,
+    TXTRecord,
+    SOARecord,
+    PTRRecord,
+)
 
 
 class SubdomainSource(BaseModel):
     strategy: str  # e.g. "subfinder"
-    source: str    # e.g. "certsh", "virustotal"
+    source: str  # e.g. "certsh", "virustotal"
 
 
 class DnsRecords(BaseModel):

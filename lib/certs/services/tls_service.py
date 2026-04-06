@@ -171,7 +171,9 @@ def _extract_cn_from_name(der: bytes, offset: int, length: int) -> str:
     return ""
 
 
-def _extract_validity(der: bytes, offset: int, length: int) -> tuple[datetime, datetime]:
+def _extract_validity(
+    der: bytes, offset: int, length: int
+) -> tuple[datetime, datetime]:
     """Extract notBefore and notAfter from a DER-encoded Validity SEQUENCE."""
     try:
         pos = offset
@@ -195,15 +197,23 @@ def _parse_der_time(der: bytes, offset: int) -> datetime:
         year = int(raw[:2])
         year += 2000 if year < 50 else 1900
         return datetime(
-            year, int(raw[2:4]), int(raw[4:6]),
-            int(raw[6:8]), int(raw[8:10]), int(raw[10:12]),
+            year,
+            int(raw[2:4]),
+            int(raw[4:6]),
+            int(raw[6:8]),
+            int(raw[8:10]),
+            int(raw[10:12]),
             tzinfo=timezone.utc,
         )
     if tag == 0x18:  # GeneralizedTime: YYYYMMDDHHMMSSZ
         raw = raw.rstrip("Z")
         return datetime(
-            int(raw[:4]), int(raw[4:6]), int(raw[6:8]),
-            int(raw[8:10]), int(raw[10:12]), int(raw[12:14]),
+            int(raw[:4]),
+            int(raw[4:6]),
+            int(raw[6:8]),
+            int(raw[8:10]),
+            int(raw[10:12]),
+            int(raw[12:14]),
             tzinfo=timezone.utc,
         )
     return _EPOCH
@@ -233,9 +243,7 @@ def _extract_san_from_extensions(der: bytes, offset: int, length: int) -> list[s
                 # OCTET STRING wrapping the SAN value
                 _, oct_len, oct_off = _read_der_tag_length(der, val_pos)
                 # Inside: SEQUENCE of GeneralName
-                _, san_seq_len, san_seq_off = _read_der_tag_length(
-                    der, oct_off
-                )
+                _, san_seq_len, san_seq_off = _read_der_tag_length(der, oct_off)
                 san_end = san_seq_off + san_seq_len
                 san_pos = san_seq_off
                 while san_pos < san_end:
@@ -283,13 +291,9 @@ def _extract_spki_info(der: bytes, offset: int, length: int) -> tuple[str, int]:
         # For RSA, the BIT STRING wraps a SEQUENCE containing the modulus.
         if key_type == "RSA" and bs_len > 1:
             inner_off = bs_off + 1
-            inner_tag, inner_len, inner_content = _read_der_tag_length(
-                der, inner_off
-            )
+            inner_tag, inner_len, inner_content = _read_der_tag_length(der, inner_off)
             if inner_tag == 0x30:
-                mod_tag, mod_len, mod_off = _read_der_tag_length(
-                    der, inner_content
-                )
+                mod_tag, mod_len, mod_off = _read_der_tag_length(der, inner_content)
                 if mod_tag == 0x02 and mod_len > 0:
                     if der[mod_off] == 0x00 and mod_len > 1:
                         key_bits = (mod_len - 1) * 8
@@ -308,9 +312,14 @@ def _parse_der_cert(der: bytes) -> dict:
     key_type, key_size, not_before, not_after.
     """
     result: dict = {
-        "subject": "", "issuer": "", "serial_number": "",
-        "san_names": [], "key_type": "unknown", "key_size": 0,
-        "not_before": _EPOCH, "not_after": _EPOCH,
+        "subject": "",
+        "issuer": "",
+        "serial_number": "",
+        "san_names": [],
+        "key_type": "unknown",
+        "key_size": 0,
+        "not_before": _EPOCH,
+        "not_after": _EPOCH,
     }
     try:
         fields = _walk_tbs(der)
@@ -344,8 +353,8 @@ def _parse_der_cert(der: bytes) -> dict:
             off, length = fields["extensions"]
             result["san_names"] = _extract_san_from_extensions(der, off, length)
 
-    except (ValueError, IndexError, struct.error):
-        pass
+    except (ValueError, IndexError, struct.error) as exc:
+        print(f"[tls] DER parse error: {exc}", file=sys.stderr)
 
     return result
 
@@ -388,10 +397,10 @@ def _check_hostname_match(host: str, san_names: list[str], subject_cn: str) -> b
     return True
 
 
-
 # ---------------------------------------------------------------------------
 # Core analysis function
 # ---------------------------------------------------------------------------
+
 
 async def analyze_tls(host: str, port: int = 443) -> TLSCertInfo:
     """Connect to *host*:*port* via TLS, retrieve the certificate, and return
@@ -421,8 +430,9 @@ async def analyze_tls(host: str, port: int = 443) -> TLSCertInfo:
         await writer.wait_closed()
 
         if not cert_der:
-            print(f"[tls] no certificate from {host}:{port}", file=sys.stderr)
-            return _error_result(host, port)
+            msg = f"no certificate returned by {host}:{port}"
+            print(f"[tls] {msg}", file=sys.stderr)
+            return _error_result(host, port, msg)
 
         parsed = _parse_der_cert(cert_der)
         subject_cn = parsed["subject"]
@@ -453,11 +463,12 @@ async def analyze_tls(host: str, port: int = 443) -> TLSCertInfo:
         )
 
     except Exception as exc:
-        print(f"[tls] error connecting to {host}:{port}: {exc}", file=sys.stderr)
-        return _error_result(host, port)
+        msg = f"error connecting to {host}:{port}: {exc}"
+        print(f"[tls] {msg}", file=sys.stderr)
+        return _error_result(host, port, msg)
 
 
-def _error_result(host: str, port: int) -> TLSCertInfo:
+def _error_result(host: str, port: int, error: str = "") -> TLSCertInfo:
     """Return a TLSCertInfo with sentinel/default values for error cases."""
     return TLSCertInfo(
         host=host,
@@ -474,12 +485,14 @@ def _error_result(host: str, port: int) -> TLSCertInfo:
         is_self_signed=False,
         is_expired=False,
         hostname_mismatch=False,
+        error=error or "failed to retrieve certificate",
     )
 
 
 # ---------------------------------------------------------------------------
 # Batch analysis with bounded concurrency
 # ---------------------------------------------------------------------------
+
 
 async def analyze_tls_batch(
     targets: list[tuple[str, int]],

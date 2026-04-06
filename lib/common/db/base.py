@@ -52,9 +52,7 @@ class ScanStore(ABC):
         Returns the parsed result dict, or None if no match.
         """
         if domain is not None and target is not None:
-            raise ValueError(
-                "load_latest_scan() accepts domain or target, not both"
-            )
+            raise ValueError("load_latest_scan() accepts domain or target, not both")
         return self._load_latest_scan(tool, domain=domain, target=target)
 
     @abstractmethod
@@ -94,6 +92,65 @@ class ScanStore(ABC):
         domain: str | None = None,
     ) -> int:
         """Bulk-delete scans. No filters = delete all. Returns count deleted."""
+        ...
+
+    @abstractmethod
+    def list_targets(self, q: str | None = None) -> list[dict]:
+        """Return aggregated target info across all scans.
+
+        Each entry contains: domain, scan_count, tools (list of tool names),
+        and last_scanned_at.  When *q* is given, only domains containing that
+        substring (case-insensitive) are returned.
+        """
+        ...
+
+    @abstractmethod
+    def load_scans_by_domain(
+        self,
+        domain: str,
+        tool: str | None = None,
+    ) -> list[dict]:
+        """Return all scans for *domain*, ordered by started_at descending.
+
+        Each row includes the full result_json.  When *tool* is given, only
+        scans from that tool are returned.
+        """
+        ...
+
+    @abstractmethod
+    def save_pipeline_run(
+        self,
+        pipeline_id: str,
+        status: str,
+        started_at: datetime,
+        finished_at: datetime | None = None,
+        error: str | None = None,
+        stages: list[dict] | None = None,
+    ) -> None:
+        """Persist a pipeline run and its stage linkage.
+
+        Each entry in *stages* is a dict with keys: scan_id, node_id, tool,
+        execution_order.
+        """
+        ...
+
+    @abstractmethod
+    def load_pipeline_run(self, pipeline_id: str) -> dict | None:
+        """Load a pipeline run by ID, including its stages.
+
+        Returns a dict with keys: pipeline_id, status, started_at,
+        finished_at, error, stages (list of stage dicts).
+        Returns None if no matching pipeline is found.
+        """
+        ...
+
+    @abstractmethod
+    def list_pipeline_runs(self, limit: int = 50) -> list[dict]:
+        """List pipeline run metadata ordered by started_at descending.
+
+        Each entry contains: pipeline_id, status, started_at, finished_at,
+        error, and tools (list of tool names used).
+        """
         ...
 
     @abstractmethod

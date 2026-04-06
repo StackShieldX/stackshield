@@ -1,4 +1,14 @@
-from .dns_records import ASNInfo, ARecord, AAAARecord, CNAMERecord, MXRecord, NSRecord, TXTRecord, SOARecord, PTRRecord
+from .dns_records import (
+    ASNInfo,
+    ARecord,
+    AAAARecord,
+    CNAMERecord,
+    MXRecord,
+    NSRecord,
+    TXTRecord,
+    SOARecord,
+    PTRRecord,
+)
 from .subdomain import SubdomainSource, DnsRecords, Subdomain
 from .whois_info import WhoisInfo
 from .domain import Domain

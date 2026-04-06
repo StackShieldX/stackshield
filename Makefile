@@ -1,4 +1,4 @@
-.PHONY: help build rebuild clean dev shell test test-v lint fmt dns ports certs db-list db-latest
+.PHONY: help build rebuild clean dev shell test test-v lint fmt dns ports certs db-list db-latest web
 
 IMAGE := stackshield
 MOUNT := -v $(CURDIR)/apps:/app/apps -v $(CURDIR)/lib:/app/lib
@@ -73,6 +73,10 @@ ifndef DOMAIN
 	$(error DOMAIN is required. Usage: make certs DOMAIN=example.com)
 endif
 	./ssx.sh certs -d $(DOMAIN) $(if $(MODE),--mode $(MODE)) $(if $(PORTS),-p $(PORTS))
+
+web: ## Launch the web UI on http://localhost:8080
+	./ssx.sh web
+
 
 db-list: ## List stored scans ([TOOL=dns] [DOMAIN=example.com])
 	./ssx.sh db list $(if $(TOOL),--tool $(TOOL)) $(if $(DOMAIN),--domain $(DOMAIN))

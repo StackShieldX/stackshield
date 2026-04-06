@@ -41,8 +41,13 @@ def _parse_stdin_targets() -> list[tuple[str, int]]:
     return _extract_targets(data)
 
 
-async def main(domain: str, mode: str, ports: str, use_stdin: bool,
-               db_targets: list[tuple[str, int]] | None = None) -> CertsResult:
+async def main(
+    domain: str,
+    mode: str,
+    ports: str,
+    use_stdin: bool,
+    db_targets: list[tuple[str, int]] | None = None,
+) -> CertsResult:
     """Discover certificates for a domain via CT logs and/or TLS connections."""
     ct_entries = []
     tls_results = []
@@ -152,7 +157,10 @@ def _load_db_targets(domain: str) -> list[tuple[str, int]] | None:
     with store:
         dns_data = store.load_latest_scan(tool="dns", domain=domain)
         if dns_data is None:
-            print(f"[certs] no DNS scan in store for {domain}, skipping DB lookup", file=sys.stderr)
+            print(
+                f"[certs] no DNS scan in store for {domain}, skipping DB lookup",
+                file=sys.stderr,
+            )
             return None
 
         ips: set[str] = set()
@@ -165,7 +173,10 @@ def _load_db_targets(domain: str) -> list[tuple[str, int]] | None:
                     ips.add(aaaa["ipv6_address"])
 
         if not ips:
-            print(f"[certs] DNS scan for {domain} has no A/AAAA records, skipping DB lookup", file=sys.stderr)
+            print(
+                f"[certs] DNS scan for {domain} has no A/AAAA records, skipping DB lookup",
+                file=sys.stderr,
+            )
             return None
 
         print(
@@ -198,7 +209,8 @@ if __name__ == "__main__":
         description="Discover certificates via CT logs and TLS connections.",
     )
     parser.add_argument(
-        "-d", "--domain",
+        "-d",
+        "--domain",
         required=True,
         help="Target domain to scan for certificates",
     )
@@ -209,7 +221,8 @@ if __name__ == "__main__":
         help="Scan mode: ct (CT logs only), tls (TLS grab only), all (default)",
     )
     parser.add_argument(
-        "-p", "--ports",
+        "-p",
+        "--ports",
         default="",
         help="Port specification for TLS scanning (e.g. '443', '443,8443')",
     )
@@ -227,11 +240,15 @@ if __name__ == "__main__":
     )
     save_group = parser.add_mutually_exclusive_group()
     save_group.add_argument(
-        "--save", action="store_true", default=False,
+        "--save",
+        action="store_true",
+        default=False,
         help="Force saving results to the store (overrides auto_save=false in config)",
     )
     save_group.add_argument(
-        "--no-save", action="store_true", default=False,
+        "--no-save",
+        action="store_true",
+        default=False,
         help="Skip saving results (overrides auto_save=true in config)",
     )
     args = parser.parse_args()
@@ -255,6 +272,8 @@ if __name__ == "__main__":
         if store is not None:
             with store:
                 scan_id = store.save_scan(
-                    tool="certs", result=result, domain=args.domain,
+                    tool="certs",
+                    result=result,
+                    domain=args.domain,
                 )
                 print(f"[db] saved scan {scan_id}", file=sys.stderr)
