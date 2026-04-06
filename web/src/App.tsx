@@ -3,6 +3,7 @@ import Layout from "./components/Layout";
 import Dashboard from "./pages/Dashboard";
 import NewScan from "./pages/NewScan";
 import History from "./pages/History";
+import Targets from "./pages/Targets";
 import Pipelines from "./pages/Pipelines";
 import ScanResults from "./pages/ScanResults";
 
@@ -13,6 +14,8 @@ export default function App() {
         <Route path="/" element={<Dashboard />} />
         <Route path="/scan" element={<NewScan />} />
         <Route path="/history" element={<History />} />
+        <Route path="/targets" element={<Targets />} />
+        <Route path="/targets/:domain" element={<Targets />} />
         <Route path="/scans/:id" element={<ScanResults />} />
         <Route path="/pipelines" element={<Pipelines />} />
       </Route>
