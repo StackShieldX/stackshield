@@ -168,15 +168,27 @@ export function listTargets(opts?: { q?: string }): Promise<TargetSummary[]> {
   return request<TargetSummary[]>(`/api/targets${qs ? `?${qs}` : ""}`);
 }
 
-/** List scans for a specific domain. */
-export function listScansForDomain(
+/** Scan entry returned by GET /api/targets/:domain/scans. */
+export interface TargetScanEntry {
+  id: string;
+  tool: string;
+  domain: string | null;
+  targets: string | null;
+  started_at: string;
+  finished_at: string | null;
+  status: string;
+  result_json: Record<string, unknown> | null;
+}
+
+/** Fetch all scans for a specific domain, ordered by started_at descending. */
+export function getTargetScans(
   domain: string,
   opts?: { tool?: string },
-): Promise<Record<string, unknown>[]> {
+): Promise<TargetScanEntry[]> {
   const params = new URLSearchParams();
   if (opts?.tool) params.set("tool", opts.tool);
   const qs = params.toString();
-  return request<Record<string, unknown>[]>(
+  return request<TargetScanEntry[]>(
     `/api/targets/${encodeURIComponent(domain)}/scans${qs ? `?${qs}` : ""}`,
   );
 }

@@ -6,6 +6,7 @@ import History from "./pages/History";
 import Targets from "./pages/Targets";
 import Pipelines from "./pages/Pipelines";
 import ScanResults from "./pages/ScanResults";
+import TargetDetail from "./pages/TargetDetail";
 
 export default function App() {
   return (
@@ -15,7 +16,7 @@ export default function App() {
         <Route path="/scan" element={<NewScan />} />
         <Route path="/history" element={<History />} />
         <Route path="/targets" element={<Targets />} />
-        <Route path="/targets/:domain" element={<Targets />} />
+        <Route path="/targets/:domain" element={<TargetDetail />} />
         <Route path="/scans/:id" element={<ScanResults />} />
         <Route path="/pipelines" element={<Pipelines />} />
       </Route>
