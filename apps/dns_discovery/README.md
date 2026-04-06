@@ -21,6 +21,8 @@ docker build -t stackshield .
 | Flag | Description |
 |------|-------------|
 | `-d`, `--domain` | Target domain (required). Example: `gigfomo.com` |
+| `--save` | Force saving results to the store (overrides `auto_save=false` in config) |
+| `--no-save` | Skip saving results (overrides `auto_save=true` in config) |
 
 ## How It Works
 

@@ -7,6 +7,7 @@ import json
 import os
 import sys
 
+from lib.common.db import get_store, should_save
 from lib.common.entities import PortScanResult
 from lib.port_scan.services.naabu_service import scan_ports
 
@@ -28,7 +29,7 @@ def _resolve_targets(raw: str) -> list[str]:
     return [t.strip() for t in raw.split(",") if t.strip()]
 
 
-async def main(targets: list[str], ports: str, scan_type: str) -> None:
+async def main(targets: list[str], ports: str, scan_type: str) -> PortScanResult:
     naabu_scan_type = SCAN_TYPE_MAP.get(scan_type, "s")
 
     port_label = ports or "top-100"
@@ -52,6 +53,7 @@ async def main(targets: list[str], ports: str, scan_type: str) -> None:
     )
 
     print(json.dumps(result.model_dump(mode="json"), indent=2))
+    return result
 
 
 if __name__ == "__main__":
@@ -74,6 +76,15 @@ if __name__ == "__main__":
         default="SYN",
         help="Scan method (default: SYN). SYN requires root/CAP_NET_RAW",
     )
+    save_group = parser.add_mutually_exclusive_group()
+    save_group.add_argument(
+        "--save", action="store_true", default=False,
+        help="Force saving results to the store (overrides auto_save=false in config)",
+    )
+    save_group.add_argument(
+        "--no-save", action="store_true", default=False,
+        help="Skip saving results (overrides auto_save=true in config)",
+    )
     args = parser.parse_args()
 
     resolved = _resolve_targets(args.targets)
@@ -82,7 +93,17 @@ if __name__ == "__main__":
         sys.exit(1)
 
     try:
-        asyncio.run(main(resolved, args.ports, args.scan_type))
+        result = asyncio.run(main(resolved, args.ports, args.scan_type))
     except KeyboardInterrupt:
         print("\nInterrupted.", file=sys.stderr)
         sys.exit(1)
+
+    do_save, config = should_save(save_flag=args.save, no_save_flag=args.no_save)
+    if do_save:
+        store = get_store(_config=config)
+        if store is not None:
+            with store:
+                scan_id = store.save_scan(
+                    tool="ports", result=result, targets=resolved,
+                )
+                print(f"[db] saved scan {scan_id}", file=sys.stderr)

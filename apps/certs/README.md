@@ -20,6 +20,9 @@ docker build -t stackshield .
 | `--mode` | No | `all` | Scan mode: `ct`, `tls`, or `all` |
 | `-p, --ports` | No | `443` | Port specification for TLS scanning (e.g. `443`, `443,8443`) |
 | `--stdin` | No | off | Read port scan JSON (`PortScanResult`) from stdin for TLS target discovery |
+| `--no-db` | No | off | Skip automatic DB lookup of prior scan results |
+| `--save` | No | off | Force saving results to the store (overrides `auto_save=false` in config) |
+| `--no-save` | No | off | Skip saving results (overrides `auto_save=true` in config) |
 
 ### Modes
 
@@ -44,6 +47,13 @@ docker build -t stackshield .
 
 # Pipeline: port scan results into TLS analysis
 ./ssx.sh ports -t 10.0.0.1 | ./ssx.sh certs -d example.com --mode tls --stdin
+
+# Automatic DB lookup: if DNS and port scans are stored,
+# certs picks up their results automatically (no piping needed)
+./ssx.sh certs -d example.com
+
+# Skip DB lookup explicitly
+./ssx.sh certs -d example.com --no-db
 ```
 
 ## Output Schema

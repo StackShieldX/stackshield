@@ -25,6 +25,8 @@ docker build -t stackshield .
 | `-t`, `--targets` | Comma-separated IPs/hostnames, or path to a file with one target per line (required) |
 | `-p`, `--ports` | Port specification (e.g. `80,443`, `1-1000`). Default: naabu top 100 |
 | `--scan-type` | `SYN` (default) or `CONNECT`. SYN requires root/CAP_NET_RAW |
+| `--save` | Force saving results to the store (overrides `auto_save=false` in config) |
+| `--no-save` | Skip saving results (overrides `auto_save=true` in config) |
 
 ## How It Works
 
