@@ -118,6 +118,42 @@ class ScanStore(ABC):
         ...
 
     @abstractmethod
+    def save_pipeline_run(
+        self,
+        pipeline_id: str,
+        status: str,
+        started_at: datetime,
+        finished_at: datetime | None = None,
+        error: str | None = None,
+        stages: list[dict] | None = None,
+    ) -> None:
+        """Persist a pipeline run and its stage linkage.
+
+        Each entry in *stages* is a dict with keys: scan_id, node_id, tool,
+        execution_order.
+        """
+        ...
+
+    @abstractmethod
+    def load_pipeline_run(self, pipeline_id: str) -> dict | None:
+        """Load a pipeline run by ID, including its stages.
+
+        Returns a dict with keys: pipeline_id, status, started_at,
+        finished_at, error, stages (list of stage dicts).
+        Returns None if no matching pipeline is found.
+        """
+        ...
+
+    @abstractmethod
+    def list_pipeline_runs(self, limit: int = 50) -> list[dict]:
+        """List pipeline run metadata ordered by started_at descending.
+
+        Each entry contains: pipeline_id, status, started_at, finished_at,
+        error, and tools (list of tool names used).
+        """
+        ...
+
+    @abstractmethod
     def close(self) -> None:
         """Release any resources held by the store."""
         ...

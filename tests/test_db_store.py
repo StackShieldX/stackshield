@@ -1,6 +1,7 @@
 """Tests for the persistence layer (SQLiteStore and factory)."""
 
 import os
+from datetime import datetime
 
 import pytest
 from pydantic import BaseModel
@@ -190,7 +191,7 @@ class TestSQLiteStore:
     def test_schema_version_stored(self, store: SQLiteStore) -> None:
         row = store._conn.execute("SELECT version FROM schema_version").fetchone()
         assert row is not None
-        assert row["version"] == 1
+        assert row["version"] == 2
 
     def test_future_schema_version_raises(self, tmp_path) -> None:
         db_path = str(tmp_path / "future.db")
@@ -202,6 +203,176 @@ class TestSQLiteStore:
 
         with pytest.raises(RuntimeError, match="newer than supported"):
             SQLiteStore(path=db_path)
+
+    def test_migration_from_v1(self, tmp_path) -> None:
+        """A v1 database is migrated to v2 with pipeline tables."""
+        db_path = str(tmp_path / "v1.db")
+        s = SQLiteStore(path=db_path)
+        # Downgrade to v1 (remove pipeline tables, set version back)
+        s._conn.execute("DROP TABLE IF EXISTS pipeline_stages")
+        s._conn.execute("DROP TABLE IF EXISTS pipeline_runs")
+        s._conn.execute("UPDATE schema_version SET version = 1")
+        s._conn.commit()
+        s.close()
+
+        # Re-open; migration should create the pipeline tables
+        s2 = SQLiteStore(path=db_path)
+        row = s2._conn.execute("SELECT version FROM schema_version").fetchone()
+        assert row["version"] == 2
+
+        # Verify pipeline tables exist by inserting data
+        from datetime import datetime, timezone
+
+        s2.save_pipeline_run(
+            pipeline_id="test-migration",
+            status="complete",
+            started_at=datetime.now(timezone.utc),
+            stages=[],
+        )
+        loaded = s2.load_pipeline_run("test-migration")
+        assert loaded is not None
+        s2.close()
+
+
+class TestPipelineStore:
+    """Tests for pipeline run persistence."""
+
+    def test_save_and_load_pipeline_run(self, store: SQLiteStore) -> None:
+        from datetime import timezone
+
+        now = datetime.now(timezone.utc)
+        stages = [
+            {"scan_id": "scan-1", "node_id": "dns1", "tool": "dns", "execution_order": 0},
+            {"scan_id": "scan-2", "node_id": "ports1", "tool": "ports", "execution_order": 1},
+        ]
+        store.save_pipeline_run(
+            pipeline_id="pipe-1",
+            status="complete",
+            started_at=now,
+            finished_at=now,
+            stages=stages,
+        )
+
+        loaded = store.load_pipeline_run("pipe-1")
+        assert loaded is not None
+        assert loaded["pipeline_id"] == "pipe-1"
+        assert loaded["status"] == "complete"
+        assert len(loaded["stages"]) == 2
+        assert loaded["stages"][0]["node_id"] == "dns1"
+        assert loaded["stages"][0]["scan_id"] == "scan-1"
+        assert loaded["stages"][1]["tool"] == "ports"
+
+    def test_load_pipeline_run_not_found(self, store: SQLiteStore) -> None:
+        assert store.load_pipeline_run("nonexistent") is None
+
+    def test_list_pipeline_runs(self, store: SQLiteStore) -> None:
+        from datetime import timezone
+
+        now = datetime.now(timezone.utc)
+        store.save_pipeline_run(
+            pipeline_id="pipe-a",
+            status="complete",
+            started_at=now,
+            stages=[
+                {"scan_id": None, "node_id": "n1", "tool": "dns", "execution_order": 0},
+            ],
+        )
+        store.save_pipeline_run(
+            pipeline_id="pipe-b",
+            status="failed",
+            started_at=now,
+            error="stage failed",
+            stages=[
+                {"scan_id": None, "node_id": "n1", "tool": "ports", "execution_order": 0},
+            ],
+        )
+
+        runs = store.list_pipeline_runs()
+        assert len(runs) == 2
+        ids = {r["pipeline_id"] for r in runs}
+        assert ids == {"pipe-a", "pipe-b"}
+
+        # Each run should have tools
+        for run in runs:
+            assert isinstance(run["tools"], list)
+            assert len(run["tools"]) >= 1
+
+    def test_list_pipeline_runs_limit(self, store: SQLiteStore) -> None:
+        from datetime import timezone
+
+        now = datetime.now(timezone.utc)
+        for i in range(5):
+            store.save_pipeline_run(
+                pipeline_id=f"pipe-{i}",
+                status="complete",
+                started_at=now,
+                stages=[],
+            )
+
+        runs = store.list_pipeline_runs(limit=3)
+        assert len(runs) == 3
+
+    def test_save_pipeline_with_no_stages(self, store: SQLiteStore) -> None:
+        from datetime import timezone
+
+        now = datetime.now(timezone.utc)
+        store.save_pipeline_run(
+            pipeline_id="pipe-empty",
+            status="complete",
+            started_at=now,
+        )
+
+        loaded = store.load_pipeline_run("pipe-empty")
+        assert loaded is not None
+        assert loaded["stages"] == []
+
+    def test_save_pipeline_with_error(self, store: SQLiteStore) -> None:
+        from datetime import timezone
+
+        now = datetime.now(timezone.utc)
+        store.save_pipeline_run(
+            pipeline_id="pipe-err",
+            status="failed",
+            started_at=now,
+            finished_at=now,
+            error="Stage 'dns1' failed",
+            stages=[
+                {"scan_id": None, "node_id": "dns1", "tool": "dns", "execution_order": 0},
+            ],
+        )
+
+        loaded = store.load_pipeline_run("pipe-err")
+        assert loaded is not None
+        assert loaded["error"] == "Stage 'dns1' failed"
+        assert loaded["status"] == "failed"
+
+    def test_save_pipeline_replaces_existing(self, store: SQLiteStore) -> None:
+        from datetime import timezone
+
+        now = datetime.now(timezone.utc)
+        store.save_pipeline_run(
+            pipeline_id="pipe-replace",
+            status="running",
+            started_at=now,
+            stages=[
+                {"scan_id": None, "node_id": "n1", "tool": "dns", "execution_order": 0},
+            ],
+        )
+        # Update the same pipeline
+        store.save_pipeline_run(
+            pipeline_id="pipe-replace",
+            status="complete",
+            started_at=now,
+            finished_at=now,
+            stages=[
+                {"scan_id": "s1", "node_id": "n1", "tool": "dns", "execution_order": 0},
+                {"scan_id": "s2", "node_id": "n2", "tool": "ports", "execution_order": 1},
+            ],
+        )
+
+        loaded = store.load_pipeline_run("pipe-replace")
+        assert loaded["status"] == "complete"
+        assert len(loaded["stages"]) == 2
 
 
 class TestFactory:

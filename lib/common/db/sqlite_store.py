@@ -9,7 +9,7 @@ from pydantic import BaseModel
 
 from lib.common.db.base import ScanStore
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 _SCHEMA_SQL = """\
 CREATE TABLE IF NOT EXISTS schema_version (
@@ -31,6 +31,27 @@ CREATE TABLE IF NOT EXISTS scans (
 CREATE INDEX IF NOT EXISTS idx_scans_tool_domain ON scans(tool, domain);
 CREATE INDEX IF NOT EXISTS idx_scans_started_at ON scans(started_at);
 CREATE INDEX IF NOT EXISTS idx_scans_domain ON scans(domain);
+
+CREATE TABLE IF NOT EXISTS pipeline_runs (
+    pipeline_id TEXT PRIMARY KEY,
+    status      TEXT NOT NULL,
+    started_at  TEXT NOT NULL,
+    finished_at TEXT,
+    error       TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_pipeline_runs_started_at ON pipeline_runs(started_at);
+
+CREATE TABLE IF NOT EXISTS pipeline_stages (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    pipeline_id     TEXT NOT NULL REFERENCES pipeline_runs(pipeline_id) ON DELETE CASCADE,
+    scan_id         TEXT,
+    node_id         TEXT NOT NULL,
+    tool            TEXT NOT NULL,
+    execution_order INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_pipeline_stages_pipeline_id ON pipeline_stages(pipeline_id);
 """
 
 
@@ -72,10 +93,34 @@ class SQLiteStore(ScanStore):
 
     def _migrate(self, from_version: int) -> None:
         """Apply sequential migrations from from_version to SCHEMA_VERSION."""
-        # Future migrations go here:
-        # if from_version < 2:
-        #     self._conn.execute("ALTER TABLE ...")
-        #     from_version = 2
+        if from_version < 2:
+            self._conn.executescript(
+                """\
+                CREATE TABLE IF NOT EXISTS pipeline_runs (
+                    pipeline_id TEXT PRIMARY KEY,
+                    status      TEXT NOT NULL,
+                    started_at  TEXT NOT NULL,
+                    finished_at TEXT,
+                    error       TEXT
+                );
+                CREATE INDEX IF NOT EXISTS idx_pipeline_runs_started_at
+                    ON pipeline_runs(started_at);
+
+                CREATE TABLE IF NOT EXISTS pipeline_stages (
+                    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                    pipeline_id     TEXT NOT NULL
+                        REFERENCES pipeline_runs(pipeline_id) ON DELETE CASCADE,
+                    scan_id         TEXT,
+                    node_id         TEXT NOT NULL,
+                    tool            TEXT NOT NULL,
+                    execution_order INTEGER NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_pipeline_stages_pipeline_id
+                    ON pipeline_stages(pipeline_id);
+                """
+            )
+            from_version = 2
+
         if from_version != SCHEMA_VERSION:
             raise RuntimeError(
                 f"Migration from schema v{from_version} to "
@@ -268,6 +313,96 @@ class SQLiteStore(ScanStore):
             results.append(entry)
 
         return results
+
+    def save_pipeline_run(
+        self,
+        pipeline_id: str,
+        status: str,
+        started_at: datetime,
+        finished_at: datetime | None = None,
+        error: str | None = None,
+        stages: list[dict] | None = None,
+    ) -> None:
+        self._conn.execute(
+            """INSERT OR REPLACE INTO pipeline_runs
+               (pipeline_id, status, started_at, finished_at, error)
+               VALUES (?, ?, ?, ?, ?)""",
+            (
+                pipeline_id,
+                status,
+                started_at.isoformat(),
+                finished_at.isoformat() if finished_at else None,
+                error,
+            ),
+        )
+
+        if stages:
+            # Clear existing stages on replace, then insert fresh
+            self._conn.execute(
+                "DELETE FROM pipeline_stages WHERE pipeline_id = ?",
+                (pipeline_id,),
+            )
+            for stage in stages:
+                self._conn.execute(
+                    """INSERT INTO pipeline_stages
+                       (pipeline_id, scan_id, node_id, tool, execution_order)
+                       VALUES (?, ?, ?, ?, ?)""",
+                    (
+                        pipeline_id,
+                        stage.get("scan_id"),
+                        stage["node_id"],
+                        stage["tool"],
+                        stage["execution_order"],
+                    ),
+                )
+
+        self._conn.commit()
+
+    def load_pipeline_run(self, pipeline_id: str) -> dict | None:
+        row = self._conn.execute(
+            "SELECT * FROM pipeline_runs WHERE pipeline_id = ?",
+            (pipeline_id,),
+        ).fetchone()
+        if row is None:
+            return None
+
+        result = dict(row)
+
+        stage_rows = self._conn.execute(
+            """SELECT scan_id, node_id, tool, execution_order
+               FROM pipeline_stages
+               WHERE pipeline_id = ?
+               ORDER BY execution_order""",
+            (pipeline_id,),
+        ).fetchall()
+
+        result["stages"] = [dict(s) for s in stage_rows]
+        return result
+
+    def list_pipeline_runs(self, limit: int = 50) -> list[dict]:
+        rows = self._conn.execute(
+            """SELECT pr.pipeline_id, pr.status, pr.started_at,
+                      pr.finished_at, pr.error,
+                      GROUP_CONCAT(DISTINCT ps.tool) AS tools_csv
+               FROM pipeline_runs pr
+               LEFT JOIN pipeline_stages ps ON pr.pipeline_id = ps.pipeline_id
+               GROUP BY pr.pipeline_id
+               ORDER BY pr.started_at DESC
+               LIMIT ?""",
+            (limit,),
+        ).fetchall()
+
+        return [
+            {
+                "pipeline_id": row["pipeline_id"],
+                "status": row["status"],
+                "started_at": row["started_at"],
+                "finished_at": row["finished_at"],
+                "error": row["error"],
+                "tools": row["tools_csv"].split(",") if row["tools_csv"] else [],
+            }
+            for row in rows
+        ]
 
     def close(self) -> None:
         self._conn.close()
