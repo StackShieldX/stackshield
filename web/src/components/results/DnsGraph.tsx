@@ -88,11 +88,11 @@ const NODE_COLORS: Record<DnsNodeType, string> = {
 };
 
 const NODE_SIZES: Record<DnsNodeType, number> = {
-  domain: 12,
-  subdomain: 6,
-  ipv4: 3,
-  ipv6: 3,
-  cname: 4,
+  domain: 6,
+  subdomain: 3,
+  ipv4: 2,
+  ipv6: 2,
+  cname: 2,
 };
 
 const DIMMED_OPACITY = 0.08;
@@ -565,7 +565,7 @@ export default function DnsGraph({ data }: DnsGraphProps) {
         ctx.strokeStyle = color;
         ctx.lineWidth = 1.5;
         ctx.beginPath();
-        ctx.arc(x, y, size + 3, 0, 2 * Math.PI);
+        ctx.arc(x, y, size + 2, 0, 2 * Math.PI);
         ctx.stroke();
       }
 
@@ -585,7 +585,7 @@ export default function DnsGraph({ data }: DnsGraphProps) {
         });
         if (hasChildren) {
           ctx.fillStyle = "#94a3b8"; // surface-400
-          ctx.font = `${Math.max(8, 10 / globalScale)}px sans-serif`;
+          ctx.font = `${Math.max(5, 7 / globalScale)}px sans-serif`;
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
           ctx.fillText("+", x, y);
@@ -602,7 +602,7 @@ export default function DnsGraph({ data }: DnsGraphProps) {
             connectedMap.get(selectedNodeId)?.has(nodeId)));
 
       if (showLabel && label) {
-        const fontSize = Math.max(10, 12 / globalScale);
+        const fontSize = Math.max(6, 8 / globalScale);
         ctx.font = `${fontSize}px Inter, sans-serif`;
         ctx.textAlign = "center";
         ctx.textBaseline = "top";

@@ -109,6 +109,40 @@ export interface ToolNodeData extends Record<string, unknown> {
   label: string;
   params: Record<string, string>;
   status: NodeStatus;
+  upstreamTools?: ToolName[];
+}
+
+// ---------------------------------------------------------------------------
+// Domain key mapping -- which param carries the primary domain/target
+// ---------------------------------------------------------------------------
+
+export const DOMAIN_KEYS: Record<ToolName, string> = {
+  dns: "domain",
+  ports: "targets",
+  certs: "domain",
+};
+
+// ---------------------------------------------------------------------------
+// Chained field rules -- fields hidden when an upstream tool provides data
+// ---------------------------------------------------------------------------
+
+/** Map of target tool -> upstream tool -> fields to hide. */
+const CHAINED_HIDDEN_FIELDS: Partial<Record<ToolName, Partial<Record<ToolName, string[]>>>> = {
+  certs: {
+    ports: ["ports"],
+  },
+};
+
+/** Get the set of field names to hide for a tool given its upstream connections. */
+export function getHiddenFields(tool: ToolName, upstreamTools: ToolName[]): Set<string> {
+  const hidden = new Set<string>();
+  const rules = CHAINED_HIDDEN_FIELDS[tool];
+  if (!rules) return hidden;
+  for (const upstream of upstreamTools) {
+    const fields = rules[upstream];
+    if (fields) fields.forEach((f) => hidden.add(f));
+  }
+  return hidden;
 }
 
 // ---------------------------------------------------------------------------

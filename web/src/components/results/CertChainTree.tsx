@@ -20,6 +20,7 @@ interface TLSCertInfo {
   is_self_signed: boolean;
   is_expired: boolean;
   hostname_mismatch: boolean;
+  error?: string | null;
 }
 
 // -- Chain reconstruction ---------------------------------------------------
@@ -35,6 +36,7 @@ function buildChains(certs: TLSCertInfo[]): { endpoint: string; chain: ChainNode
   // Group by host:port
   const groups = new Map<string, TLSCertInfo[]>();
   for (const cert of certs) {
+    if (cert.error) continue;
     const key = `${cert.host}:${cert.port}`;
     const existing = groups.get(key);
     if (existing) {

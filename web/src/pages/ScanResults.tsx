@@ -126,7 +126,18 @@ export default function ScanResults() {
 
     getScan(id)
       .then((json) => {
-        setData(json);
+        // The web tool_runner saves results wrapped in {"data": ...}.
+        // Unwrap so detectToolType sees the actual result keys.
+        const inner =
+          json &&
+          typeof json === "object" &&
+          "data" in json &&
+          Object.keys(json).length === 1 &&
+          typeof json.data === "object" &&
+          json.data !== null
+            ? (json.data as Record<string, unknown>)
+            : json;
+        setData(inner);
       })
       .catch((err: unknown) => {
         const status = (err as { status?: number }).status;

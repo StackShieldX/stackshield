@@ -22,6 +22,7 @@ interface TLSCertInfo {
   is_self_signed: boolean;
   is_expired: boolean;
   hostname_mismatch: boolean;
+  error?: string | null;
 }
 
 interface CTEntry {
@@ -66,6 +67,20 @@ function StatusBadge({ label, variant }: { label: string; variant: "danger" | "w
 }
 
 function TLSCertCard({ cert }: { cert: TLSCertInfo }) {
+  if (cert.error) {
+    return (
+      <div className="rounded-lg border border-status-danger/40 bg-status-danger/5 p-4">
+        <div className="flex items-start justify-between gap-4 mb-3">
+          <div className="text-sm font-semibold text-surface-200 truncate">
+            {cert.host}:{cert.port}
+          </div>
+          <StatusBadge label="Error" variant="danger" />
+        </div>
+        <p className="text-sm text-surface-400">{cert.error}</p>
+      </div>
+    );
+  }
+
   const hasWarnings = cert.is_expired || cert.is_self_signed || cert.hostname_mismatch;
 
   return (
@@ -134,9 +149,11 @@ interface CertResultsProps {
 export default function CertResults({ data }: CertResultsProps) {
   const tlsResults = data.tls_results || [];
   const ctEntries = data.ct_entries || [];
-  const totalCerts = tlsResults.length + ctEntries.length;
-  const expiredCount = tlsResults.filter((c) => c.is_expired).length;
-  const selfSignedCount = tlsResults.filter((c) => c.is_self_signed).length;
+  const validTls = tlsResults.filter((c) => !c.error);
+  const errorCount = tlsResults.length - validTls.length;
+  const totalCerts = validTls.length + ctEntries.length;
+  const expiredCount = validTls.filter((c) => c.is_expired).length;
+  const selfSignedCount = validTls.filter((c) => c.is_self_signed).length;
 
   return (
     <div className="space-y-6">
@@ -170,6 +187,12 @@ export default function CertResults({ data }: CertResultsProps) {
           <div className="rounded-lg border border-status-warning/40 bg-status-warning/5 px-5 py-3">
             <div className="text-2xl font-bold text-status-warning">{selfSignedCount}</div>
             <div className="text-xs text-status-warning/70 mt-0.5">Self-Signed</div>
+          </div>
+        )}
+        {errorCount > 0 && (
+          <div className="rounded-lg border border-surface-600 bg-surface-900 px-5 py-3">
+            <div className="text-2xl font-bold text-surface-400">{errorCount}</div>
+            <div className="text-xs text-surface-500 mt-0.5">Failed</div>
           </div>
         )}
       </div>

@@ -521,7 +521,7 @@ class PipelineRunner:
                             if t.strip()
                         ]
 
-                    wrapper = ScanResultWrapper(data=stage.result_json)
+                    wrapper = ScanResultWrapper(stage.result_json)
                     saved_id = store.save_scan(
                         tool=stage.tool,
                         result=wrapper,

@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, RootModel
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -28,6 +28,10 @@ TOOL_REGISTRY: dict[str, dict[str, Any]] = {
         "args_fn": lambda p: ["-d", p["domain"]],
         "domain_key": "domain",
     },
+    # TODO: Allow the port scanner to read targets from stdin (piped DNS
+    # results) so that when chained after DNS in a pipeline the "targets"
+    # param becomes optional -- matching how the certs tool already infers
+    # TLS targets from upstream scan data via --stdin.
     "ports": {
         "script": "apps/port_scan/port.py",
         "args_fn": lambda p: [
@@ -75,10 +79,12 @@ class ScanState(BaseModel):
     stderr_lines: list[str] = Field(default_factory=list)
 
 
-class ScanResultWrapper(BaseModel):
-    """Generic wrapper so raw JSON dicts can be passed to ScanStore.save_scan."""
+class ScanResultWrapper(RootModel[dict]):
+    """Thin wrapper so raw JSON dicts can be passed to ScanStore.save_scan.
 
-    data: dict
+    Uses RootModel so model_dump_json() serializes as the dict itself,
+    not as {"data": {...}}.
+    """
 
 
 # ---------------------------------------------------------------------------
@@ -261,7 +267,7 @@ class ToolRunner:
                             if t.strip()
                         ]
 
-                    wrapper = ScanResultWrapper(data=result_data)
+                    wrapper = ScanResultWrapper(result_data)
                     saved_id = store.save_scan(
                         tool=state.tool,
                         result=wrapper,

@@ -7,7 +7,7 @@
 
 import { memo } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
-import { TOOLS, VALID_CONNECTIONS, type ToolNodeData, type NodeStatus } from "./types";
+import { TOOLS, VALID_CONNECTIONS, getHiddenFields, type ToolNodeData, type ToolName, type NodeStatus } from "./types";
 
 // ---------------------------------------------------------------------------
 // Status badge styles
@@ -52,11 +52,14 @@ function ToolNodeComponent({ data, selected }: NodeProps) {
   const statusStyle = STATUS_STYLES[status];
   const hasOutputConnections = VALID_CONNECTIONS[nodeData.tool].length > 0;
 
-  // Count configured params
-  const configuredCount = Object.values(nodeData.params).filter(
-    (v) => v.trim() !== "",
+  // Count configured params (excluding fields hidden by upstream chaining)
+  const upstreamTools = (nodeData.upstreamTools as ToolName[] | undefined) ?? [];
+  const hiddenFields = getHiddenFields(nodeData.tool, upstreamTools);
+  const visibleFields = toolDef.fields.filter((f) => !hiddenFields.has(f.name));
+  const configuredCount = visibleFields.filter(
+    (f) => (nodeData.params[f.name] ?? "").trim() !== "",
   ).length;
-  const totalFields = toolDef.fields.length;
+  const totalFields = visibleFields.length;
 
   return (
     <div
