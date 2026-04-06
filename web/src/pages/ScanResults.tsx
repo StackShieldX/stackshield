@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
+import { getScan } from "../api/client";
 import DnsResults from "../components/results/DnsResults";
 import PortResults from "../components/results/PortResults";
 import CertResults from "../components/results/CertResults";
@@ -123,24 +124,17 @@ export default function ScanResults() {
     setNotFound(false);
     setError(null);
 
-    fetch(`/api/scans/${encodeURIComponent(id)}`)
-      .then((res) => {
-        if (res.status === 404) {
-          setNotFound(true);
-          return null;
-        }
-        if (!res.ok) {
-          throw new Error(`Server returned ${res.status}`);
-        }
-        return res.json();
-      })
+    getScan(id)
       .then((json) => {
-        if (json !== null) {
-          setData(json as Record<string, unknown>);
-        }
+        setData(json);
       })
-      .catch((err) => {
-        setError(err instanceof Error ? err.message : "Failed to load scan");
+      .catch((err: unknown) => {
+        const status = (err as { status?: number }).status;
+        if (status === 404) {
+          setNotFound(true);
+        } else {
+          setError(err instanceof Error ? err.message : "Failed to load scan");
+        }
       })
       .finally(() => {
         setLoading(false);
