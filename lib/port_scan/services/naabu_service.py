@@ -56,13 +56,18 @@ def _is_large_scan(ports: str) -> bool:
     """Check if the port spec covers a large range (> 10000 ports)."""
     if not ports:
         return False
-    try:
-        if "-" in ports:
-            parts = ports.split("-")
-            return int(parts[1]) - int(parts[0]) > 10000
-    except (ValueError, IndexError):
-        pass
-    return False
+    count = 0
+    for part in ports.split(","):
+        part = part.strip()
+        if "-" in part:
+            bounds = part.split("-", 1)
+            try:
+                count += int(bounds[1]) - int(bounds[0]) + 1
+            except (ValueError, IndexError):
+                continue
+        elif part:
+            count += 1
+    return count > 10000
 
 
 async def scan_ports(

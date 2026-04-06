@@ -20,6 +20,9 @@ from pydantic import BaseModel, Field
 
 from apps.web.services.tool_runner import TOOL_REGISTRY, ScanResultWrapper
 
+MAX_COMPLETED_PIPELINES = 50
+MAX_STDERR_LINES = 5000
+
 # ---------------------------------------------------------------------------
 # Models
 # ---------------------------------------------------------------------------
@@ -392,6 +395,7 @@ class PipelineRunner:
                     },
                 )
                 self._broadcast_done(pipeline_id)
+                self._prune_completed()
                 return
 
         # All stages complete
@@ -410,6 +414,7 @@ class PipelineRunner:
             },
         )
         self._broadcast_done(pipeline_id)
+        self._prune_completed()
 
     async def _run_stage(
         self,
@@ -454,7 +459,8 @@ class PipelineRunner:
             if not line_bytes:
                 break
             line = line_bytes.decode(errors="replace").rstrip("\n")
-            stage.stderr_lines.append(line)
+            if len(stage.stderr_lines) < MAX_STDERR_LINES:
+                stage.stderr_lines.append(line)
             self._broadcast(
                 pipeline_id,
                 {
@@ -549,6 +555,7 @@ class PipelineRunner:
                             "node_id": node_id,
                             "tool": stage.tool,
                             "execution_order": order_idx,
+                            "status": stage.status.value,
                         }
                     )
 
@@ -581,6 +588,19 @@ class PipelineRunner:
         """Signal end-of-stream to all subscribers."""
         for queue in self._ws_subscribers.get(pipeline_id, []):
             queue.put_nowait(None)
+
+    def _prune_completed(self) -> None:
+        """Remove oldest finished pipelines when over the limit."""
+        finished = [
+            (pid, p) for pid, p in self._pipelines.items()
+            if p.status != PipelineStatus.running
+        ]
+        if len(finished) <= MAX_COMPLETED_PIPELINES:
+            return
+        finished.sort(key=lambda x: x[1].finished_at or x[1].started_at)
+        for pid, _ in finished[: len(finished) - MAX_COMPLETED_PIPELINES]:
+            del self._pipelines[pid]
+            self._ws_subscribers.pop(pid, None)
 
 
 # Module-level singleton

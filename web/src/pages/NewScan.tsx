@@ -253,7 +253,7 @@ export default function NewScan() {
     };
 
     ws.onclose = () => {
-      wsRef.current = null;
+      if (wsRef.current === ws) wsRef.current = null;
     };
   }, []);
 

@@ -17,6 +17,8 @@ from pydantic import BaseModel, Field, RootModel
 # ---------------------------------------------------------------------------
 
 MAX_CONCURRENT_SCANS = 3
+MAX_COMPLETED_ENTRIES = 100
+MAX_STDERR_LINES = 5000
 
 # Map tool names to their CLI entry-point scripts and the argument style
 # each tool expects.  Each value is a dict with:
@@ -210,7 +212,8 @@ class ToolRunner:
                     if not line_bytes:
                         break
                     line = line_bytes.decode(errors="replace").rstrip("\n")
-                    state.stderr_lines.append(line)
+                    if len(state.stderr_lines) < MAX_STDERR_LINES:
+                        state.stderr_lines.append(line)
                     self._broadcast(scan_id, line)
 
                 # Wait for the process to finish and capture stdout
@@ -235,6 +238,7 @@ class ToolRunner:
             finally:
                 # Signal all WebSocket subscribers that the stream is done
                 self._broadcast_done(scan_id)
+                self._prune_completed()
 
     async def _handle_success(self, state: ScanState, stdout_text: str) -> None:
         """Parse stdout JSON, persist to ScanStore, mark complete."""
@@ -306,6 +310,19 @@ class ToolRunner:
         """Signal end-of-stream to all subscribers."""
         for queue in self._ws_subscribers.get(scan_id, []):
             queue.put_nowait(None)
+
+    def _prune_completed(self) -> None:
+        """Remove oldest finished entries when over the limit."""
+        finished = [
+            (sid, s) for sid, s in self._scans.items()
+            if s.status != ScanStatus.running
+        ]
+        if len(finished) <= MAX_COMPLETED_ENTRIES:
+            return
+        finished.sort(key=lambda x: x[1].finished_at or x[1].started_at)
+        for sid, _ in finished[: len(finished) - MAX_COMPLETED_ENTRIES]:
+            del self._scans[sid]
+            self._ws_subscribers.pop(sid, None)
 
 
 # Module-level singleton so the router and server share one instance.

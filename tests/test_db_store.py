@@ -191,47 +191,18 @@ class TestSQLiteStore:
     def test_schema_version_stored(self, store: SQLiteStore) -> None:
         row = store._conn.execute("SELECT version FROM schema_version").fetchone()
         assert row is not None
-        assert row["version"] == 2
+        assert row["version"] == 1
 
-    def test_future_schema_version_raises(self, tmp_path) -> None:
+    def test_mismatched_schema_version_raises(self, tmp_path) -> None:
         db_path = str(tmp_path / "future.db")
-        # Create a DB with a future schema version
+        # Create a DB with a different schema version
         s = SQLiteStore(path=db_path)
         s._conn.execute("UPDATE schema_version SET version = 999")
         s._conn.commit()
         s.close()
 
-        with pytest.raises(RuntimeError, match="newer than supported"):
+        with pytest.raises(RuntimeError, match="does not match"):
             SQLiteStore(path=db_path)
-
-    def test_migration_from_v1(self, tmp_path) -> None:
-        """A v1 database is migrated to v2 with pipeline tables."""
-        db_path = str(tmp_path / "v1.db")
-        s = SQLiteStore(path=db_path)
-        # Downgrade to v1 (remove pipeline tables, set version back)
-        s._conn.execute("DROP TABLE IF EXISTS pipeline_stages")
-        s._conn.execute("DROP TABLE IF EXISTS pipeline_runs")
-        s._conn.execute("UPDATE schema_version SET version = 1")
-        s._conn.commit()
-        s.close()
-
-        # Re-open; migration should create the pipeline tables
-        s2 = SQLiteStore(path=db_path)
-        row = s2._conn.execute("SELECT version FROM schema_version").fetchone()
-        assert row["version"] == 2
-
-        # Verify pipeline tables exist by inserting data
-        from datetime import datetime, timezone
-
-        s2.save_pipeline_run(
-            pipeline_id="test-migration",
-            status="complete",
-            started_at=datetime.now(timezone.utc),
-            stages=[],
-        )
-        loaded = s2.load_pipeline_run("test-migration")
-        assert loaded is not None
-        s2.close()
 
 
 class TestPipelineStore:

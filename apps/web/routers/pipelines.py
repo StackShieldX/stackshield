@@ -92,15 +92,7 @@ def _load_pipeline_from_db(pipeline_id: str) -> PipelineDetailResponse | None:
                 if db_stage.get("scan_id"):
                     result_json = store.load_scan_by_id(db_stage["scan_id"])
 
-                # Determine stage status from pipeline status and result
-                if result_json is not None:
-                    stage_status = "complete"
-                elif run["status"] == "failed":
-                    # If pipeline failed and this stage has no result,
-                    # it was either the failed stage or was skipped
-                    stage_status = "skipped"
-                else:
-                    stage_status = "complete"
+                stage_status = db_stage.get("status", "complete")
 
                 stages[node_id] = StageDetail(
                     node_id=node_id,

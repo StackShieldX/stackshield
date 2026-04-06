@@ -47,11 +47,15 @@ export default function CommandPalette({ open, onClose }: CommandPaletteProps) {
       switch (e.key) {
         case "ArrowDown":
           e.preventDefault();
-          setSelectedIndex((i) => (i + 1) % filtered.length);
+          setSelectedIndex((i) =>
+            filtered.length > 0 ? (i + 1) % filtered.length : 0,
+          );
           break;
         case "ArrowUp":
           e.preventDefault();
-          setSelectedIndex((i) => (i - 1 + filtered.length) % filtered.length);
+          setSelectedIndex((i) =>
+            filtered.length > 0 ? (i - 1 + filtered.length) % filtered.length : 0,
+          );
           break;
         case "Enter":
           e.preventDefault();

@@ -9,7 +9,7 @@ from pydantic import BaseModel
 
 from lib.common.db.base import ScanStore
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 1
 
 _SCHEMA_SQL = """\
 CREATE TABLE IF NOT EXISTS schema_version (
@@ -48,7 +48,8 @@ CREATE TABLE IF NOT EXISTS pipeline_stages (
     scan_id         TEXT,
     node_id         TEXT NOT NULL,
     tool            TEXT NOT NULL,
-    execution_order INTEGER NOT NULL
+    execution_order INTEGER NOT NULL,
+    status          TEXT NOT NULL DEFAULT 'complete'
 );
 
 CREATE INDEX IF NOT EXISTS idx_pipeline_stages_pipeline_id ON pipeline_stages(pipeline_id);
@@ -80,54 +81,12 @@ class SQLiteStore(ScanStore):
                 (SCHEMA_VERSION,),
             )
             self._conn.commit()
-        else:
-            stored = row["version"]
-            if stored < SCHEMA_VERSION:
-                self._migrate(stored)
-            elif stored > SCHEMA_VERSION:
-                raise RuntimeError(
-                    f"Database schema version {stored} is newer than "
-                    f"supported version {SCHEMA_VERSION}. "
-                    f"Upgrade stackshield to use this database."
-                )
-
-    def _migrate(self, from_version: int) -> None:
-        """Apply sequential migrations from from_version to SCHEMA_VERSION."""
-        if from_version < 2:
-            self._conn.executescript(
-                """\
-                CREATE TABLE IF NOT EXISTS pipeline_runs (
-                    pipeline_id TEXT PRIMARY KEY,
-                    status      TEXT NOT NULL,
-                    started_at  TEXT NOT NULL,
-                    finished_at TEXT,
-                    error       TEXT
-                );
-                CREATE INDEX IF NOT EXISTS idx_pipeline_runs_started_at
-                    ON pipeline_runs(started_at);
-
-                CREATE TABLE IF NOT EXISTS pipeline_stages (
-                    id              INTEGER PRIMARY KEY AUTOINCREMENT,
-                    pipeline_id     TEXT NOT NULL
-                        REFERENCES pipeline_runs(pipeline_id) ON DELETE CASCADE,
-                    scan_id         TEXT,
-                    node_id         TEXT NOT NULL,
-                    tool            TEXT NOT NULL,
-                    execution_order INTEGER NOT NULL
-                );
-                CREATE INDEX IF NOT EXISTS idx_pipeline_stages_pipeline_id
-                    ON pipeline_stages(pipeline_id);
-                """
-            )
-            from_version = 2
-
-        if from_version != SCHEMA_VERSION:
+        elif row["version"] != SCHEMA_VERSION:
             raise RuntimeError(
-                f"Migration from schema v{from_version} to "
-                f"v{SCHEMA_VERSION} not yet implemented"
+                f"Database schema version {row['version']} does not match "
+                f"expected version {SCHEMA_VERSION}. "
+                f"Delete the database file or upgrade stackshield."
             )
-        self._conn.execute("UPDATE schema_version SET version = ?", (SCHEMA_VERSION,))
-        self._conn.commit()
 
     def save_scan(
         self,
@@ -345,14 +304,16 @@ class SQLiteStore(ScanStore):
             for stage in stages:
                 self._conn.execute(
                     """INSERT INTO pipeline_stages
-                       (pipeline_id, scan_id, node_id, tool, execution_order)
-                       VALUES (?, ?, ?, ?, ?)""",
+                       (pipeline_id, scan_id, node_id, tool, execution_order,
+                        status)
+                       VALUES (?, ?, ?, ?, ?, ?)""",
                     (
                         pipeline_id,
                         stage.get("scan_id"),
                         stage["node_id"],
                         stage["tool"],
                         stage["execution_order"],
+                        stage.get("status", "complete"),
                     ),
                 )
 
@@ -369,7 +330,7 @@ class SQLiteStore(ScanStore):
         result = dict(row)
 
         stage_rows = self._conn.execute(
-            """SELECT scan_id, node_id, tool, execution_order
+            """SELECT scan_id, node_id, tool, execution_order, status
                FROM pipeline_stages
                WHERE pipeline_id = ?
                ORDER BY execution_order""",
@@ -405,4 +366,7 @@ class SQLiteStore(ScanStore):
         ]
 
     def close(self) -> None:
-        self._conn.close()
+        try:
+            self._conn.close()
+        except sqlite3.Error:
+            pass
