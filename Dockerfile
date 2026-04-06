@@ -1,6 +1,6 @@
 FROM kalilinux/kali-rolling
 
-# Install system dependencies in a single layer
+# Install system dependencies (including Node.js LTS) in a single layer
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     python3-pip \
@@ -12,6 +12,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     unzip \
     ca-certificates \
     libpcap-dev \
+    nodejs \
+    npm \
     && rm -rf /var/lib/apt/lists/*
 
 # Install uv
@@ -52,6 +54,9 @@ RUN uv sync
 # Add venv to PATH so `python` resolves to the venv Python
 ENV PATH="/app/.venv/bin:$PATH"
 ENV PYTHONPATH="/app"
+
+# Build the frontend and copy output to where FastAPI serves it
+RUN cd web && npm ci && npm run build && cp -r dist/ ../apps/web/dist/
 
 # Default data directory for persistence (mounted as a volume at runtime)
 RUN mkdir -p /data
