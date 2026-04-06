@@ -380,6 +380,9 @@ class PipelineRunner:
                 state.finished_at = datetime.now(timezone.utc)
                 state.error = f"Stage {node_id!r} ({node.tool}) failed: {exc}"
 
+                # Persist failed pipeline metadata
+                self._persist_results(state)
+
                 self._broadcast(
                     pipeline_id,
                     {
@@ -492,7 +495,7 @@ class PipelineRunner:
         return result_data
 
     def _persist_results(self, state: PipelineState) -> None:
-        """Save each completed stage's result to the ScanStore."""
+        """Save each completed stage's result and pipeline metadata to ScanStore."""
         try:
             from lib.common.db import get_store
 
@@ -501,41 +504,71 @@ class PipelineRunner:
                 return
 
             with store:
-                for node_id in state.execution_order:
+                # Track scan_ids per stage for pipeline linkage
+                stage_records: list[dict] = []
+
+                for order_idx, node_id in enumerate(state.execution_order):
                     stage = state.stages[node_id]
+                    scan_id: str | None = None
+
                     if (
-                        stage.status != StageStatus.complete
-                        or stage.result_json is None
+                        stage.status == StageStatus.complete
+                        and stage.result_json is not None
                     ):
-                        continue
+                        entry = TOOL_REGISTRY.get(stage.tool, {})
+                        domain_key = entry.get("domain_key")
+                        domain = (
+                            stage.params.get(domain_key) if domain_key else None
+                        )
 
-                    entry = TOOL_REGISTRY.get(stage.tool, {})
-                    domain_key = entry.get("domain_key")
-                    domain = stage.params.get(domain_key) if domain_key else None
+                        targets: list[str] | None = None
+                        if stage.tool == "ports" and "targets" in stage.params:
+                            targets = [
+                                t.strip()
+                                for t in stage.params["targets"].split(",")
+                                if t.strip()
+                            ]
 
-                    targets: list[str] | None = None
-                    if stage.tool == "ports" and "targets" in stage.params:
-                        targets = [
-                            t.strip()
-                            for t in stage.params["targets"].split(",")
-                            if t.strip()
-                        ]
+                        wrapper = ScanResultWrapper(stage.result_json)
+                        scan_id = store.save_scan(
+                            tool=stage.tool,
+                            result=wrapper,
+                            domain=domain,
+                            targets=targets,
+                            started_at=stage.started_at,
+                        )
+                        print(
+                            f"[pipeline_runner] saved stage {node_id} "
+                            f"as scan {scan_id}",
+                            file=sys.stderr,
+                        )
 
-                    wrapper = ScanResultWrapper(stage.result_json)
-                    saved_id = store.save_scan(
-                        tool=stage.tool,
-                        result=wrapper,
-                        domain=domain,
-                        targets=targets,
-                        started_at=stage.started_at,
+                    stage_records.append(
+                        {
+                            "scan_id": scan_id,
+                            "node_id": node_id,
+                            "tool": stage.tool,
+                            "execution_order": order_idx,
+                        }
                     )
-                    print(
-                        f"[pipeline_runner] saved stage {node_id} as scan {saved_id}",
-                        file=sys.stderr,
-                    )
+
+                # Save pipeline run metadata with stage linkage
+                store.save_pipeline_run(
+                    pipeline_id=state.pipeline_id,
+                    status=state.status.value,
+                    started_at=state.started_at,
+                    finished_at=state.finished_at,
+                    error=state.error,
+                    stages=stage_records,
+                )
+                print(
+                    f"[pipeline_runner] saved pipeline run {state.pipeline_id}",
+                    file=sys.stderr,
+                )
         except Exception as exc:
             print(
-                f"[pipeline_runner] failed to persist pipeline {state.pipeline_id}: {exc}",
+                f"[pipeline_runner] failed to persist pipeline "
+                f"{state.pipeline_id}: {exc}",
                 file=sys.stderr,
             )
 

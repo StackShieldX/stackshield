@@ -80,6 +80,16 @@ export interface PipelineDetail {
   error: string | null;
 }
 
+/** Pipeline list item returned by GET /api/pipelines. */
+export interface PipelineListItem {
+  pipeline_id: string;
+  status: string;
+  started_at: string;
+  finished_at: string | null;
+  error: string | null;
+  tools: string[];
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -174,6 +184,16 @@ export function getRunDetail(scanId: string): Promise<ScanDetail> {
 // ---------------------------------------------------------------------------
 // Pipeline endpoints
 // ---------------------------------------------------------------------------
+
+/** List past pipeline runs with metadata. */
+export function listPipelines(opts?: {
+  limit?: number;
+}): Promise<PipelineListItem[]> {
+  const params = new URLSearchParams();
+  if (opts?.limit != null) params.set("limit", String(opts.limit));
+  const qs = params.toString();
+  return request<PipelineListItem[]>(`/api/pipelines/${qs ? `?${qs}` : ""}`);
+}
 
 /** Fetch full pipeline detail by ID. */
 export function getPipeline(pipelineId: string): Promise<PipelineDetail> {
