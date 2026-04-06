@@ -1,0 +1,10 @@
+export default function NewScan() {
+  return (
+    <div className="p-6">
+      <h1 className="text-2xl font-semibold text-surface-100">New Scan</h1>
+      <p className="mt-2 text-sm text-surface-400">
+        Configure and launch a security scan.
+      </p>
+    </div>
+  );
+}
