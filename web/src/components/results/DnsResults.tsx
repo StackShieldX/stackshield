@@ -4,6 +4,8 @@
  *   { name, whois_info?, subdomains: [{ name, sources, dns_records: { a, aaaa, cname, ... } }] }
  */
 
+import DnsGraph from "./DnsGraph";
+
 interface ARecord {
   ip_address: string;
   asn_info?: { asn?: string; organization?: string; country?: string; network_range?: string } | null;
@@ -163,6 +165,9 @@ export default function DnsResults({ data }: DnsResultsProps) {
 
   return (
     <div className="space-y-6">
+      {/* Interactive network graph (skipped for trivially small results) */}
+      <DnsGraph data={data} />
+
       {/* Key metric */}
       <div className="flex gap-4">
         <div className="rounded-lg border border-surface-700 bg-surface-900 px-5 py-3">
