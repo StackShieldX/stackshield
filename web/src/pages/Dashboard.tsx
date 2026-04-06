@@ -15,6 +15,7 @@ interface ToolInfo {
   label: string;
   color: string;
   bgColor: string;
+  barColor: string;
   description: string;
 }
 
@@ -23,18 +24,21 @@ const TOOL_MAP: Record<string, ToolInfo> = {
     label: "DNS",
     color: "text-blue-400",
     bgColor: "bg-blue-500/15",
+    barColor: "bg-blue-500/60",
     description: "DNS discovery and subdomain enumeration",
   },
   ports: {
     label: "Ports",
     color: "text-amber-400",
     bgColor: "bg-amber-500/15",
+    barColor: "bg-amber-500/60",
     description: "Port scanning and service detection",
   },
   certs: {
     label: "Certs",
     color: "text-emerald-400",
     bgColor: "bg-emerald-500/15",
+    barColor: "bg-emerald-500/60",
     description: "TLS certificate analysis",
   },
 };
@@ -47,6 +51,7 @@ function getToolInfo(tool: string): ToolInfo {
       label: tool,
       color: "text-surface-400",
       bgColor: "bg-surface-700/50",
+      barColor: "bg-surface-500/60",
       description: "Security scan",
     }
   );
@@ -335,7 +340,7 @@ function ToolBreakdown({ scans }: { scans: ScanMeta[] }) {
                 </div>
                 <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface-800">
                   <div
-                    className={`h-full rounded-full ${info.bgColor.replace("/15", "/60")} transition-all duration-500`}
+                    className={`h-full rounded-full ${info.barColor} transition-all duration-500`}
                     style={{ width: `${pct}%` }}
                   />
                 </div>

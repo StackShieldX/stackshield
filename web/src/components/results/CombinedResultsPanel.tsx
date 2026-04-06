@@ -75,11 +75,16 @@ function extractMetrics(results: ToolResult[]): SummaryMetrics {
   let openPorts = 0;
   let certificates = 0;
 
+  const uniqueSubdomains = new Set<string>();
+
   for (const { tool, data } of results) {
     if (tool === "dns") {
       const subs = data.subdomains;
       if (Array.isArray(subs)) {
-        subdomains += subs.length;
+        for (const s of subs) {
+          const name = typeof s === "string" ? s : (s as Record<string, unknown>).name;
+          if (typeof name === "string") uniqueSubdomains.add(name);
+        }
       }
     } else if (tool === "ports") {
       const portResults = data.results;
@@ -89,28 +94,61 @@ function extractMetrics(results: ToolResult[]): SummaryMetrics {
     } else if (tool === "certs") {
       const tls = data.tls_results;
       const ct = data.ct_entries;
+      const rootDomain = typeof data.domain === "string" ? data.domain : "";
       if (Array.isArray(tls)) {
         certificates += tls.filter(
           (c: Record<string, unknown>) => !c.error,
         ).length;
+        for (const cert of tls as Array<Record<string, unknown>>) {
+          if (typeof cert.host === "string" && cert.host !== rootDomain) {
+            uniqueSubdomains.add(cert.host);
+          }
+          const sans = cert.san_names;
+          if (Array.isArray(sans)) {
+            for (const san of sans) {
+              if (typeof san === "string" && san !== rootDomain) {
+                uniqueSubdomains.add(san);
+              }
+            }
+          }
+        }
       }
       if (Array.isArray(ct)) {
         certificates += ct.length;
+        for (const entry of ct as Array<Record<string, unknown>>) {
+          if (typeof entry.domain === "string" && entry.domain !== rootDomain) {
+            uniqueSubdomains.add(entry.domain);
+          }
+          const sans = entry.san_names;
+          if (Array.isArray(sans)) {
+            for (const san of sans) {
+              if (typeof san === "string" && san !== rootDomain) {
+                uniqueSubdomains.add(san);
+              }
+            }
+          }
+        }
       }
     }
   }
 
+  subdomains = uniqueSubdomains.size;
   return { subdomains, openPorts, certificates };
 }
 
 // -- Sub-components ---------------------------------------------------------
 
-function MetricsBar({ metrics }: { metrics: SummaryMetrics }) {
-  const items = [
-    { label: "Subdomains", value: metrics.subdomains },
-    { label: "Open Ports", value: metrics.openPorts },
-    { label: "Certificates", value: metrics.certificates },
-  ];
+function MetricsBar({ metrics, tools }: { metrics: SummaryMetrics; tools: Set<string> }) {
+  const items: Array<{ label: string; value: number }> = [];
+  if (metrics.subdomains > 0 || tools.has("dns")) {
+    items.push({ label: "Subdomains", value: metrics.subdomains });
+  }
+  if (metrics.openPorts > 0 || tools.has("ports")) {
+    items.push({ label: "Open Ports", value: metrics.openPorts });
+  }
+  if (metrics.certificates > 0 || tools.has("certs")) {
+    items.push({ label: "Certificates", value: metrics.certificates });
+  }
 
   return (
     <div className="flex flex-wrap gap-4">
@@ -232,10 +270,11 @@ export default function CombinedResultsPanel({ results }: CombinedResultsPanelPr
   }
 
   const metrics = extractMetrics(results);
+  const toolSet = new Set(results.map((r) => r.tool));
 
   return (
     <div className="space-y-6">
-      <MetricsBar metrics={metrics} />
+      <MetricsBar metrics={metrics} tools={toolSet} />
       {results.map((result, index) => (
         <ToolSection
           key={result.scanId ?? `${result.tool}-${index}`}

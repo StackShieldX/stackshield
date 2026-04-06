@@ -6,7 +6,7 @@
  */
 
 import { useCallback } from "react";
-import { TOOLS, getHiddenFields, type ToolName, type ToolNodeData } from "./types";
+import { TOOLS, DOMAIN_KEYS, getHiddenFields, type ToolName, type ToolNodeData } from "./types";
 
 interface ParamPanelProps {
   nodeId: string;
@@ -28,6 +28,8 @@ export default function ParamPanel({
   const toolDef = TOOLS[data.tool as ToolName];
   const hiddenFields = getHiddenFields(data.tool, upstreamTools ?? []);
   const visibleFields = toolDef?.fields.filter((f) => !hiddenFields.has(f.name)) ?? [];
+  const hasUpstream = (upstreamTools ?? []).length > 0;
+  const domainKey = DOMAIN_KEYS[data.tool];
 
   const handleFieldChange = useCallback(
     (fieldName: string, value: string) => {
@@ -69,31 +71,39 @@ export default function ParamPanel({
 
       {/* Parameter fields */}
       <div className="space-y-3">
-        {visibleFields.map((field) => (
-          <div key={field.name}>
-            <label
-              htmlFor={`param-${nodeId}-${field.name}`}
-              className="mb-1 block text-xs font-medium text-surface-300"
-            >
-              {field.label}
-              {field.required && (
-                <span className="ml-0.5 text-status-danger">*</span>
+        {visibleFields.map((field) => {
+          const inheritedFromUpstream = hasUpstream && field.name === domainKey;
+          return (
+            <div key={field.name}>
+              <label
+                htmlFor={`param-${nodeId}-${field.name}`}
+                className="mb-1 block text-xs font-medium text-surface-300"
+              >
+                {field.label}
+                {field.required && !inheritedFromUpstream && (
+                  <span className="ml-0.5 text-status-danger">*</span>
+                )}
+                {inheritedFromUpstream && (
+                  <span className="ml-1.5 text-xs font-normal text-surface-500">
+                    (set by upstream)
+                  </span>
+                )}
+              </label>
+              <input
+                id={`param-${nodeId}-${field.name}`}
+                type="text"
+                disabled={disabled || inheritedFromUpstream}
+                placeholder={field.placeholder}
+                value={data.params[field.name] ?? ""}
+                onChange={(e) => handleFieldChange(field.name, e.target.value)}
+                className="block w-full rounded-lg border border-surface-700 bg-surface-900 px-3 py-1.5 text-sm text-surface-100 placeholder:text-surface-500 outline-none transition-colors focus:border-accent-500 focus:ring-2 focus:ring-accent-500/40 disabled:cursor-not-allowed disabled:opacity-60"
+              />
+              {field.hint && !inheritedFromUpstream && (
+                <p className="mt-0.5 text-xs text-surface-500">{field.hint}</p>
               )}
-            </label>
-            <input
-              id={`param-${nodeId}-${field.name}`}
-              type="text"
-              disabled={disabled}
-              placeholder={field.placeholder}
-              value={data.params[field.name] ?? ""}
-              onChange={(e) => handleFieldChange(field.name, e.target.value)}
-              className="block w-full rounded-lg border border-surface-700 bg-surface-900 px-3 py-1.5 text-sm text-surface-100 placeholder:text-surface-500 outline-none transition-colors focus:border-accent-500 focus:ring-2 focus:ring-accent-500/40 disabled:cursor-not-allowed disabled:opacity-60"
-            />
-            {field.hint && (
-              <p className="mt-0.5 text-xs text-surface-500">{field.hint}</p>
-            )}
-          </div>
-        ))}
+            </div>
+          );
+        })}
       </div>
 
       {/* Note about fields inferred from upstream */}

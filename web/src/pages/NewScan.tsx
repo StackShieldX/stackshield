@@ -427,7 +427,7 @@ export default function NewScan() {
                 </p>
                 {scanId && (
                   <a
-                    href={`/history?scan=${scanId}`}
+                    href={`/scans/${scanId}`}
                     className="mt-0.5 inline-block text-xs text-accent-400 underline underline-offset-2 hover:text-accent-300"
                   >
                     View full results

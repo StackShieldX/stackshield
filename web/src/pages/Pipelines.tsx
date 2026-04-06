@@ -214,7 +214,7 @@ export default function Pipelines() {
       const targetKey = DOMAIN_KEYS[targetData.tool];
       const sourceValue = sourceData.params[sourceKey];
 
-      if (sourceValue && !targetData.params[targetKey]) {
+      if (sourceValue) {
         setNodes((nds) =>
           nds.map((n) =>
             n.id === connection.target
@@ -293,35 +293,49 @@ export default function Pipelines() {
     (nodeId: string, params: Record<string, string>) => {
       setNodes((nds) => {
         // Update the edited node
-        const updated = nds.map((n) =>
+        let updated = nds.map((n) =>
           n.id === nodeId ? { ...n, data: { ...n.data, params } } : n,
         );
 
-        // Propagate domain/target to downstream nodes with empty fields
-        const node = updated.find((n) => n.id === nodeId);
-        if (!node) return updated;
+        // Recursively propagate domain/target to all downstream nodes
+        const visited = new Set<string>();
+        const propagate = (sourceId: string) => {
+          if (visited.has(sourceId)) return;
+          visited.add(sourceId);
 
-        const tool = getNodeData(node).tool;
-        const sourceKey = DOMAIN_KEYS[tool];
-        const sourceValue = params[sourceKey];
-        if (!sourceValue) return updated;
+          const node = updated.find((n) => n.id === sourceId);
+          if (!node) return;
 
-        const downstream = edges.filter((e) => e.source === nodeId);
-        if (downstream.length === 0) return updated;
+          const tool = getNodeData(node).tool;
+          const sourceKey = DOMAIN_KEYS[tool];
+          const sourceValue = getNodeData(node).params[sourceKey];
+          if (!sourceValue) return;
 
-        return updated.map((n) => {
-          if (!downstream.some((e) => e.target === n.id)) return n;
-          const targetData = getNodeData(n);
-          const targetKey = DOMAIN_KEYS[targetData.tool];
-          if (targetData.params[targetKey]) return n;
-          return {
-            ...n,
-            data: {
-              ...n.data,
-              params: { ...targetData.params, [targetKey]: sourceValue },
-            },
-          };
-        });
+          const downstream = edges.filter((e) => e.source === sourceId);
+          if (downstream.length === 0) return;
+
+          updated = updated.map((n) => {
+            if (!downstream.some((e) => e.target === n.id)) return n;
+            const targetData = getNodeData(n);
+            const targetKey = DOMAIN_KEYS[targetData.tool];
+            if (targetData.params[targetKey] === sourceValue) return n;
+            return {
+              ...n,
+              data: {
+                ...n.data,
+                params: { ...targetData.params, [targetKey]: sourceValue },
+              },
+            };
+          });
+
+          for (const edge of downstream) {
+            propagate(edge.target);
+          }
+        };
+
+        propagate(nodeId);
+
+        return updated;
       });
     },
     [setNodes, edges],
