@@ -4,6 +4,7 @@ import Dashboard from "./pages/Dashboard";
 import NewScan from "./pages/NewScan";
 import History from "./pages/History";
 import Pipelines from "./pages/Pipelines";
+import ScanDetail from "./pages/ScanDetail";
 
 export default function App() {
   return (
@@ -12,6 +13,7 @@ export default function App() {
         <Route path="/" element={<Dashboard />} />
         <Route path="/scan" element={<NewScan />} />
         <Route path="/history" element={<History />} />
+        <Route path="/scans/:id" element={<ScanDetail />} />
         <Route path="/pipelines" element={<Pipelines />} />
       </Route>
     </Routes>
