@@ -56,23 +56,6 @@ function getToolInfo(tool: string): ToolInfo {
 // Inline SVG icons (Heroicons mini style, 20x20)
 // ---------------------------------------------------------------------------
 
-function ShieldIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 20 20"
-      fill="currentColor"
-      className={className ?? "h-5 w-5"}
-    >
-      <path
-        fillRule="evenodd"
-        d="M9.661 2.237a.531.531 0 01.678 0 11.947 11.947 0 007.078 2.749.5.5 0 01.479.425c.069.52.104 1.05.104 1.59 0 5.162-3.26 9.563-7.834 11.256a.48.48 0 01-.332 0C5.26 16.564 2 12.163 2 7c0-.54.035-1.07.104-1.59a.5.5 0 01.48-.425 11.947 11.947 0 007.077-2.749z"
-        clipRule="evenodd"
-      />
-    </svg>
-  );
-}
-
 function GlobeIcon({ className }: { className?: string }) {
   return (
     <svg
@@ -178,43 +161,142 @@ function extractTarget(scan: ScanMeta): string {
 // Sub-components
 // ---------------------------------------------------------------------------
 
-function MetricCard({
-  label,
-  value,
-  icon,
-  detail,
-}: {
-  label: string;
-  value: number | string;
-  icon: React.ReactNode;
-  detail?: string;
-}) {
+function ScanActivityCard({ scans }: { scans: ScanMeta[] }) {
+  const total = scans.length;
+  const completed = scans.filter((s) => s.status === "complete").length;
+  const failed = scans.filter((s) => s.status === "failed").length;
+  const successRate = total > 0 ? Math.round((completed / total) * 100) : 0;
+  const mostRecent = scans[0];
+
+  // Ring chart values
+  const radius = 28;
+  const circumference = 2 * Math.PI * radius;
+  const successOffset = circumference - (circumference * successRate) / 100;
+
   return (
     <div className="rounded-xl border border-surface-800 bg-surface-900 p-5">
-      <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent-600/15 text-accent-400">
-          {icon}
-        </div>
-        <div className="min-w-0">
+      <div className="flex items-start justify-between">
+        <div>
           <p className="text-xs font-medium uppercase tracking-wider text-surface-500">
-            {label}
+            Scan activity
           </p>
-          <p className="mt-0.5 text-2xl font-semibold text-surface-100">
-            {value}
-          </p>
+          <p className="mt-1 text-3xl font-bold text-surface-100">{total}</p>
+          <p className="mt-0.5 text-xs text-surface-500">total scans</p>
+        </div>
+        <div className="relative flex h-[72px] w-[72px] items-center justify-center">
+          <svg className="h-full w-full -rotate-90" viewBox="0 0 64 64">
+            <circle
+              cx="32"
+              cy="32"
+              r={radius}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="5"
+              className="text-surface-800"
+            />
+            <circle
+              cx="32"
+              cy="32"
+              r={radius}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="5"
+              strokeDasharray={circumference}
+              strokeDashoffset={successOffset}
+              strokeLinecap="round"
+              className="text-status-success transition-all duration-500"
+            />
+          </svg>
+          <span className="absolute text-xs font-bold text-surface-200">
+            {successRate}%
+          </span>
         </div>
       </div>
-      {detail && (
-        <p className="mt-3 text-xs text-surface-500">{detail}</p>
+      <div className="mt-4 flex items-center gap-4 text-xs">
+        <span className="flex items-center gap-1.5">
+          <span className="h-2 w-2 rounded-full bg-status-success" />
+          <span className="text-surface-400">{completed} passed</span>
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-2 w-2 rounded-full bg-status-danger" />
+          <span className="text-surface-400">{failed} failed</span>
+        </span>
+      </div>
+      {mostRecent && (
+        <p className="mt-3 border-t border-surface-800 pt-3 text-xs text-surface-500">
+          Last scan {formatTimestamp(mostRecent.started_at)}
+        </p>
       )}
+    </div>
+  );
+}
+
+function TargetCoverageCard({ scans }: { scans: ScanMeta[] }) {
+  const domains = scans.map((s) => s.domain).filter(Boolean) as string[];
+  const uniqueDomains = new Set(domains).size;
+
+  // Top domains by scan count
+  const domainCounts: Record<string, number> = {};
+  for (const d of domains) {
+    domainCounts[d] = (domainCounts[d] ?? 0) + 1;
+  }
+  const topDomains = Object.entries(domainCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3);
+
+  const avgScans =
+    uniqueDomains > 0
+      ? (domains.length / uniqueDomains).toFixed(1)
+      : "0";
+
+  return (
+    <div className="rounded-xl border border-surface-800 bg-surface-900 p-5">
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wider text-surface-500">
+            Target coverage
+          </p>
+          <p className="mt-1 text-3xl font-bold text-surface-100">
+            {uniqueDomains}
+          </p>
+          <p className="mt-0.5 text-xs text-surface-500">unique domains</p>
+        </div>
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent-600/15 text-accent-400">
+          <GlobeIcon />
+        </div>
+      </div>
+      {topDomains.length > 0 && (
+        <div className="mt-4 space-y-2">
+          {topDomains.map(([domain, count]) => (
+            <div
+              key={domain}
+              className="flex items-center justify-between text-xs"
+            >
+              <span className="truncate font-mono text-surface-300">
+                {domain}
+              </span>
+              <span className="ml-2 shrink-0 rounded-full bg-surface-800 px-2 py-0.5 text-surface-400">
+                {count} {count === 1 ? "scan" : "scans"}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+      <p className="mt-3 border-t border-surface-800 pt-3 text-xs text-surface-500">
+        {avgScans} avg scans per target
+      </p>
     </div>
   );
 }
 
 function ToolBreakdown({ scans }: { scans: ScanMeta[] }) {
   const counts: Record<string, number> = {};
+  const lastScanByTool: Record<string, string> = {};
   for (const s of scans) {
     counts[s.tool] = (counts[s.tool] ?? 0) + 1;
+    if (!lastScanByTool[s.tool] || s.started_at > lastScanByTool[s.tool]) {
+      lastScanByTool[s.tool] = s.started_at;
+    }
   }
   const total = scans.length || 1;
   const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
@@ -222,29 +304,44 @@ function ToolBreakdown({ scans }: { scans: ScanMeta[] }) {
   return (
     <div className="rounded-xl border border-surface-800 bg-surface-900 p-5">
       <p className="text-xs font-medium uppercase tracking-wider text-surface-500">
-        By tool
+        Tool breakdown
       </p>
       {sorted.length === 0 ? (
         <p className="mt-3 text-sm text-surface-500">No data yet</p>
       ) : (
-        <div className="mt-3 space-y-2.5">
+        <div className="mt-3 space-y-3">
           {sorted.map(([tool, count]) => {
             const info = getToolInfo(tool);
             const pct = Math.round((count / total) * 100);
             return (
               <div key={tool}>
-                <div className="flex items-center justify-between text-sm">
-                  <span className={info.color}>{info.label}</span>
-                  <span className="text-surface-400">
-                    {count} ({pct}%)
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`inline-flex h-6 w-6 items-center justify-center rounded text-[10px] font-bold ${info.bgColor} ${info.color}`}
+                    >
+                      {info.label.charAt(0)}
+                    </span>
+                    <span className={`text-sm font-medium ${info.color}`}>
+                      {info.label}
+                    </span>
+                  </div>
+                  <span className="text-sm font-semibold text-surface-300">
+                    {count}
+                    <span className="ml-1 text-xs font-normal text-surface-500">
+                      ({pct}%)
+                    </span>
                   </span>
                 </div>
-                <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-surface-800">
+                <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface-800">
                   <div
-                    className={`h-full rounded-full ${info.bgColor.replace("/15", "/60")}`}
+                    className={`h-full rounded-full ${info.bgColor.replace("/15", "/60")} transition-all duration-500`}
                     style={{ width: `${pct}%` }}
                   />
                 </div>
+                <p className="mt-1 text-[11px] text-surface-600">
+                  last run {formatTimestamp(lastScanByTool[tool])}
+                </p>
               </div>
             );
           })}
@@ -431,12 +528,8 @@ export default function Dashboard() {
   }, [fetchData]);
 
   // Derived metrics
-  const totalScans = scans.length;
-  const uniqueDomains = new Set(
-    scans.map((s) => s.domain).filter(Boolean),
-  ).size;
   const recentScans = scans.slice(0, 10);
-  const isEmpty = totalScans === 0 && runningScans.length === 0;
+  const isEmpty = scans.length === 0 && runningScans.length === 0;
 
   // Skeleton placeholder while loading
   if (loading) {
@@ -511,17 +604,8 @@ export default function Dashboard() {
         <>
           {/* Metric cards */}
           <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <MetricCard
-              label="Total scans"
-              value={totalScans}
-              icon={<ShieldIcon />}
-              detail={`${scans.filter((s) => s.status === "complete").length} completed`}
-            />
-            <MetricCard
-              label="Unique domains"
-              value={uniqueDomains}
-              icon={<GlobeIcon />}
-            />
+            <ScanActivityCard scans={scans} />
+            <TargetCoverageCard scans={scans} />
             <ToolBreakdown scans={scans} />
           </div>
 
