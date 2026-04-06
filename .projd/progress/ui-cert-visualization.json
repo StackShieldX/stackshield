@@ -1,0 +1,18 @@
+{
+  "id": "ui-cert-visualization",
+  "name": "Certificate timeline and chain visualization",
+  "description": "Visualization component for certificate discovery results. Shows a timeline of certificate validity periods and a tree view of certificate chains. Integrated into the results viewer page when viewing certs scan results.",
+  "acceptance_criteria": [
+    "Timeline chart renders on the certs results viewer page showing each certificate's not_before to not_after as a horizontal bar",
+    "Color coding: green for valid, red for expired, amber for expiring within 30 days",
+    "Hover/click a bar to see full cert details (subject, issuer, SANs, key type/size)",
+    "Self-signed certificates marked with a distinct icon/badge on the timeline",
+    "TLS chain view: tree showing the certificate chain (leaf -> intermediate -> root) for each TLS result",
+    "Hostname mismatch warnings displayed prominently on affected certificates"
+  ],
+  "priority": 4,
+  "status": "complete",
+  "branch": "agent/ui-cert-visualization",
+  "blocked_by": ["ui-results-viewer"],
+  "notes": "Timeline data comes from CertsResult: ct_entries[].not_before/not_after and tls_results[].not_before/not_after/is_expired/is_self_signed/hostname_mismatch."
+}
