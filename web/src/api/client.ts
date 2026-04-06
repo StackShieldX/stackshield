@@ -149,6 +149,39 @@ export function getRunDetail(scanId: string): Promise<ScanDetail> {
 }
 
 // ---------------------------------------------------------------------------
+// Targets endpoints (aggregated domain info)
+// ---------------------------------------------------------------------------
+
+/** A single target (domain) with aggregated scan info. */
+export interface TargetSummary {
+  domain: string;
+  scan_count: number;
+  tools: string[];
+  last_scanned_at: string;
+}
+
+/** List all known targets with optional search filter. */
+export function listTargets(opts?: { q?: string }): Promise<TargetSummary[]> {
+  const params = new URLSearchParams();
+  if (opts?.q) params.set("q", opts.q);
+  const qs = params.toString();
+  return request<TargetSummary[]>(`/api/targets${qs ? `?${qs}` : ""}`);
+}
+
+/** List scans for a specific domain. */
+export function listScansForDomain(
+  domain: string,
+  opts?: { tool?: string },
+): Promise<Record<string, unknown>[]> {
+  const params = new URLSearchParams();
+  if (opts?.tool) params.set("tool", opts.tool);
+  const qs = params.toString();
+  return request<Record<string, unknown>[]>(
+    `/api/targets/${encodeURIComponent(domain)}/scans${qs ? `?${qs}` : ""}`,
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Health
 // ---------------------------------------------------------------------------
 

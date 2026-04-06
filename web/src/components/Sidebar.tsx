@@ -57,6 +57,23 @@ function HistoryIcon() {
   );
 }
 
+function TargetsIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 20 20"
+      fill="currentColor"
+      className="h-5 w-5"
+    >
+      <path
+        fillRule="evenodd"
+        d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-1.5 0a6.5 6.5 0 11-13 0 6.5 6.5 0 0113 0zm-3 0a3.5 3.5 0 11-7 0 3.5 3.5 0 017 0zm-3.5 1.5a1.5 1.5 0 100-3 1.5 1.5 0 000 3z"
+        clipRule="evenodd"
+      />
+    </svg>
+  );
+}
+
 function PipelinesIcon() {
   return (
     <svg
@@ -84,6 +101,7 @@ export const NAV_ROUTES: NavRoute[] = [
   { path: "/", label: "Dashboard", icon: <DashboardIcon /> },
   { path: "/scan", label: "New Scan", icon: <ScanIcon /> },
   { path: "/history", label: "History", icon: <HistoryIcon /> },
+  { path: "/targets", label: "Targets", icon: <TargetsIcon /> },
   { path: "/pipelines", label: "Pipelines", icon: <PipelinesIcon /> },
 ];
 
