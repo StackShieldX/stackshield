@@ -5,12 +5,10 @@ from __future__ import annotations
 from datetime import datetime
 
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from apps.web.services.pipeline_runner import (
     PipelineDefinition,
-    PipelineStatus,
-    StageStatus,
     pipeline_runner,
 )
 
@@ -76,7 +74,9 @@ async def get_pipeline(pipeline_id: str) -> PipelineDetailResponse:
     """Return the current state of a pipeline including all stage details."""
     state = pipeline_runner.get_pipeline(pipeline_id)
     if state is None:
-        raise HTTPException(status_code=404, detail=f"Pipeline {pipeline_id!r} not found")
+        raise HTTPException(
+            status_code=404, detail=f"Pipeline {pipeline_id!r} not found"
+        )
 
     stages = {}
     for node_id, stage in state.stages.items():

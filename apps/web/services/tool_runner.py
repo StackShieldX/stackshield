@@ -31,7 +31,8 @@ TOOL_REGISTRY: dict[str, dict[str, Any]] = {
     "ports": {
         "script": "apps/port_scan/port.py",
         "args_fn": lambda p: [
-            "-t", p["targets"],
+            "-t",
+            p["targets"],
             *(["--ports", p["ports"]] if p.get("ports") else []),
             *(["--scan-type", p["scan_type"]] if p.get("scan_type") else []),
         ],
@@ -40,7 +41,8 @@ TOOL_REGISTRY: dict[str, dict[str, Any]] = {
     "certs": {
         "script": "apps/certs/certs.py",
         "args_fn": lambda p: [
-            "-d", p["domain"],
+            "-d",
+            p["domain"],
             *(["--mode", p["mode"]] if p.get("mode") else []),
             *(["--ports", p["ports"]] if p.get("ports") else []),
         ],
@@ -117,7 +119,9 @@ class ToolRunner:
         Raises RuntimeError if the concurrent scan limit has been reached.
         """
         if tool not in TOOL_REGISTRY:
-            raise ValueError(f"Unknown tool: {tool!r}. Available: {', '.join(TOOL_REGISTRY)}")
+            raise ValueError(
+                f"Unknown tool: {tool!r}. Available: {', '.join(TOOL_REGISTRY)}"
+            )
 
         if self.active_count >= MAX_CONCURRENT_SCANS:
             raise RuntimeError(
@@ -166,7 +170,9 @@ class ToolRunner:
 
         return queue
 
-    def unsubscribe_stderr(self, scan_id: str, queue: asyncio.Queue[str | None]) -> None:
+    def unsubscribe_stderr(
+        self, scan_id: str, queue: asyncio.Queue[str | None]
+    ) -> None:
         """Remove a subscriber queue."""
         subs = self._ws_subscribers.get(scan_id, [])
         try:
@@ -183,7 +189,10 @@ class ToolRunner:
         async with self._semaphore:
             try:
                 proc = await asyncio.create_subprocess_exec(
-                    sys.executable, script, *cli_args, "--no-save",
+                    sys.executable,
+                    script,
+                    *cli_args,
+                    "--no-save",
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                 )
@@ -200,7 +209,11 @@ class ToolRunner:
 
                 # Wait for the process to finish and capture stdout
                 stdout_bytes, _ = await proc.communicate()
-                stdout_text = stdout_bytes.decode(errors="replace").strip() if stdout_bytes else ""
+                stdout_text = (
+                    stdout_bytes.decode(errors="replace").strip()
+                    if stdout_bytes
+                    else ""
+                )
 
                 if proc.returncode == 0:
                     await self._handle_success(state, stdout_text)

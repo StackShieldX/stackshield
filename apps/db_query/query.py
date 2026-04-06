@@ -67,8 +67,7 @@ def cmd_delete(args: argparse.Namespace) -> None:
 def cmd_purge(args: argparse.Namespace) -> None:
     if args.tool is None and args.domain is None and not args.yes:
         print(
-            "[db] purge with no filters deletes ALL scans. "
-            "Pass --yes to confirm.",
+            "[db] purge with no filters deletes ALL scans. Pass --yes to confirm.",
             file=sys.stderr,
         )
         sys.exit(1)
@@ -89,7 +88,9 @@ if __name__ == "__main__":
     p_list = sub.add_parser("list", help="List stored scans")
     p_list.add_argument("--tool", help="Filter by tool name (dns, ports, certs)")
     p_list.add_argument("--domain", help="Filter by domain")
-    p_list.add_argument("--limit", type=int, default=20, help="Max results (default: 20)")
+    p_list.add_argument(
+        "--limit", type=int, default=20, help="Max results (default: 20)"
+    )
     p_list.set_defaults(func=cmd_list)
 
     # show
@@ -109,11 +110,15 @@ if __name__ == "__main__":
     p_delete.set_defaults(func=cmd_delete)
 
     # purge
-    p_purge = sub.add_parser("purge", help="Bulk-delete scans (no filters = delete all)")
+    p_purge = sub.add_parser(
+        "purge", help="Bulk-delete scans (no filters = delete all)"
+    )
     p_purge.add_argument("--tool", help="Only purge scans for this tool")
     p_purge.add_argument("--domain", help="Only purge scans for this domain")
     p_purge.add_argument(
-        "--yes", "-y", action="store_true",
+        "--yes",
+        "-y",
+        action="store_true",
         help="Required when purging with no filters (deletes all scans)",
     )
     p_purge.set_defaults(func=cmd_purge)

@@ -80,9 +80,7 @@ class SQLiteStore(ScanStore):
                 f"Migration from schema v{from_version} to "
                 f"v{SCHEMA_VERSION} not yet implemented"
             )
-        self._conn.execute(
-            "UPDATE schema_version SET version = ?", (SCHEMA_VERSION,)
-        )
+        self._conn.execute("UPDATE schema_version SET version = ?", (SCHEMA_VERSION,))
         self._conn.commit()
 
     def save_scan(
@@ -184,9 +182,7 @@ class SQLiteStore(ScanStore):
         return [dict(row) for row in rows]
 
     def delete_scan(self, scan_id: str) -> bool:
-        cursor = self._conn.execute(
-            "DELETE FROM scans WHERE id = ?", (scan_id,)
-        )
+        cursor = self._conn.execute("DELETE FROM scans WHERE id = ?", (scan_id,))
         self._conn.commit()
         return cursor.rowcount > 0
 

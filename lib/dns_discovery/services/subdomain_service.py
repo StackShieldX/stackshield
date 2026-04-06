@@ -14,8 +14,7 @@ class SubdomainStrategy(ABC):
     """
 
     @abstractmethod
-    async def discover(self, domain: str) -> list[Subdomain]:
-        ...
+    async def discover(self, domain: str) -> list[Subdomain]: ...
 
 
 class SubfinderStrategy(SubdomainStrategy):
@@ -26,12 +25,17 @@ class SubfinderStrategy(SubdomainStrategy):
     async def discover(self, domain: str) -> list[Subdomain]:
         try:
             proc = await asyncio.create_subprocess_exec(
-                "subfinder", "-d", domain, "-json", "-silent",
+                "subfinder",
+                "-d",
+                domain,
+                "-json",
+                "-silent",
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
             stdout, _ = await asyncio.wait_for(
-                proc.communicate(), timeout=self.SUBPROCESS_TIMEOUT,
+                proc.communicate(),
+                timeout=self.SUBPROCESS_TIMEOUT,
             )
             return self._parse(stdout.decode(errors="replace"))
         except asyncio.TimeoutError:

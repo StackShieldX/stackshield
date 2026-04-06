@@ -41,11 +41,13 @@ def _parse_naabu(output: str) -> list[PortEntry]:
             continue
         seen.add(key)
 
-        entries.append(PortEntry(
-            host=host or ip,
-            ip=ip,
-            port=port_int,
-        ))
+        entries.append(
+            PortEntry(
+                host=host or ip,
+                ip=ip,
+                port=port_int,
+            )
+        )
 
     return entries
 

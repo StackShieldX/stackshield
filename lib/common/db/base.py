@@ -52,9 +52,7 @@ class ScanStore(ABC):
         Returns the parsed result dict, or None if no match.
         """
         if domain is not None and target is not None:
-            raise ValueError(
-                "load_latest_scan() accepts domain or target, not both"
-            )
+            raise ValueError("load_latest_scan() accepts domain or target, not both")
         return self._load_latest_scan(tool, domain=domain, target=target)
 
     @abstractmethod

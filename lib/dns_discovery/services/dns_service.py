@@ -42,22 +42,28 @@ def _parse_dnsx(output: str) -> DnsRecords:
         # MX records — dnsx outputs strings like "10 mail.example.com." or dicts
         for mx in data.get("mx", []):
             if isinstance(mx, dict):
-                records.mx.append(MXRecord(
-                    priority=int(mx.get("preference", 0)),
-                    exchange=mx.get("host", "").rstrip("."),
-                ))
+                records.mx.append(
+                    MXRecord(
+                        priority=int(mx.get("preference", 0)),
+                        exchange=mx.get("host", "").rstrip("."),
+                    )
+                )
             elif isinstance(mx, str):
                 parts = mx.strip().split(None, 1)
                 if len(parts) == 2:
                     try:
-                        records.mx.append(MXRecord(
-                            priority=int(parts[0]),
-                            exchange=parts[1].rstrip("."),
-                        ))
+                        records.mx.append(
+                            MXRecord(
+                                priority=int(parts[0]),
+                                exchange=parts[1].rstrip("."),
+                            )
+                        )
                     except ValueError:
                         records.mx.append(MXRecord(priority=0, exchange=mx.rstrip(".")))
                 elif len(parts) == 1:
-                    records.mx.append(MXRecord(priority=0, exchange=parts[0].rstrip(".")))
+                    records.mx.append(
+                        MXRecord(priority=0, exchange=parts[0].rstrip("."))
+                    )
 
         # NS records
         for ns in data.get("ns", []):
@@ -72,34 +78,40 @@ def _parse_dnsx(output: str) -> DnsRecords:
 
         # SOA record — dict or string "ns mbox serial refresh retry expire minimum"
         soa_raw = data.get("soa")
-        soa_list = soa_raw if isinstance(soa_raw, list) else [soa_raw] if soa_raw else []
+        soa_list = (
+            soa_raw if isinstance(soa_raw, list) else [soa_raw] if soa_raw else []
+        )
         for soa in soa_list:
             if isinstance(soa, dict):
                 try:
-                    records.soa.append(SOARecord(
-                        mname=soa.get("ns", "").rstrip("."),
-                        rname=soa.get("mbox", "").rstrip("."),
-                        serial=int(soa.get("serial", 0)),
-                        refresh=int(soa.get("refresh", 0)),
-                        retry=int(soa.get("retry", 0)),
-                        expire=int(soa.get("expire", 0)),
-                        minimum=int(soa.get("minttl", 0)),
-                    ))
+                    records.soa.append(
+                        SOARecord(
+                            mname=soa.get("ns", "").rstrip("."),
+                            rname=soa.get("mbox", "").rstrip("."),
+                            serial=int(soa.get("serial", 0)),
+                            refresh=int(soa.get("refresh", 0)),
+                            retry=int(soa.get("retry", 0)),
+                            expire=int(soa.get("expire", 0)),
+                            minimum=int(soa.get("minttl", 0)),
+                        )
+                    )
                 except (ValueError, TypeError):
                     pass
             elif isinstance(soa, str):
                 parts = soa.strip().split()
                 if len(parts) >= 7:
                     try:
-                        records.soa.append(SOARecord(
-                            mname=parts[0].rstrip("."),
-                            rname=parts[1].rstrip("."),
-                            serial=int(parts[2]),
-                            refresh=int(parts[3]),
-                            retry=int(parts[4]),
-                            expire=int(parts[5]),
-                            minimum=int(parts[6]),
-                        ))
+                        records.soa.append(
+                            SOARecord(
+                                mname=parts[0].rstrip("."),
+                                rname=parts[1].rstrip("."),
+                                serial=int(parts[2]),
+                                refresh=int(parts[3]),
+                                retry=int(parts[4]),
+                                expire=int(parts[5]),
+                                minimum=int(parts[6]),
+                            )
+                        )
                     except (ValueError, IndexError):
                         pass
 
@@ -117,8 +129,17 @@ async def get_dns_records(hostname: str) -> DnsRecords:
     try:
         proc = await asyncio.create_subprocess_exec(
             "dnsx",
-            "-a", "-aaaa", "-cname", "-mx", "-ns", "-txt", "-soa", "-ptr",
-            "-json", "-silent", "-resp",
+            "-a",
+            "-aaaa",
+            "-cname",
+            "-mx",
+            "-ns",
+            "-txt",
+            "-soa",
+            "-ptr",
+            "-json",
+            "-silent",
+            "-resp",
             stdin=asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,

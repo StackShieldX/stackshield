@@ -51,12 +51,14 @@ SUBPROCESS_TIMEOUT = 30
 async def get_asn_info(ip: str) -> ASNInfo:
     try:
         proc = await asyncio.create_subprocess_exec(
-            "whois", ip,
+            "whois",
+            ip,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
         stdout, _ = await asyncio.wait_for(
-            proc.communicate(), timeout=SUBPROCESS_TIMEOUT,
+            proc.communicate(),
+            timeout=SUBPROCESS_TIMEOUT,
         )
         return _parse_asn_whois(stdout.decode(errors="replace"))
     except asyncio.TimeoutError:

@@ -61,12 +61,14 @@ if __name__ == "__main__":
         description="Discover open ports on target hosts.",
     )
     parser.add_argument(
-        "-t", "--targets",
+        "-t",
+        "--targets",
         required=True,
         help="Comma-separated IPs/hostnames, or path to a file with one target per line",
     )
     parser.add_argument(
-        "-p", "--ports",
+        "-p",
+        "--ports",
         default="",
         help="Port specification (e.g. '80,443', '1-1000'). Default: naabu top 100",
     )
@@ -78,11 +80,15 @@ if __name__ == "__main__":
     )
     save_group = parser.add_mutually_exclusive_group()
     save_group.add_argument(
-        "--save", action="store_true", default=False,
+        "--save",
+        action="store_true",
+        default=False,
         help="Force saving results to the store (overrides auto_save=false in config)",
     )
     save_group.add_argument(
-        "--no-save", action="store_true", default=False,
+        "--no-save",
+        action="store_true",
+        default=False,
         help="Skip saving results (overrides auto_save=true in config)",
     )
     args = parser.parse_args()
@@ -104,6 +110,8 @@ if __name__ == "__main__":
         if store is not None:
             with store:
                 scan_id = store.save_scan(
-                    tool="ports", result=result, targets=resolved,
+                    tool="ports",
+                    result=result,
+                    targets=resolved,
                 )
                 print(f"[db] saved scan {scan_id}", file=sys.stderr)

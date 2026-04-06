@@ -204,9 +204,7 @@ class PipelineRunner:
         self._pipelines[pipeline_id] = state
 
         # Launch background execution
-        asyncio.create_task(
-            self._execute(pipeline_id, node_map, predecessors, order)
-        )
+        asyncio.create_task(self._execute(pipeline_id, node_map, predecessors, order))
 
         return state
 
@@ -224,47 +222,63 @@ class PipelineRunner:
         if state is not None:
             for node_id in state.execution_order:
                 stage = state.stages[node_id]
-                if stage.status in (StageStatus.complete, StageStatus.failed, StageStatus.skipped):
+                if stage.status in (
+                    StageStatus.complete,
+                    StageStatus.failed,
+                    StageStatus.skipped,
+                ):
                     # Replay stage start
-                    queue.put_nowait({
-                        "type": "stage_start",
-                        "stage": node_id,
-                        "tool": stage.tool,
-                    })
+                    queue.put_nowait(
+                        {
+                            "type": "stage_start",
+                            "stage": node_id,
+                            "tool": stage.tool,
+                        }
+                    )
                     # Replay stderr lines
                     for line in stage.stderr_lines:
-                        queue.put_nowait({
-                            "type": "stderr",
-                            "stage": node_id,
-                            "line": line,
-                        })
+                        queue.put_nowait(
+                            {
+                                "type": "stderr",
+                                "stage": node_id,
+                                "line": line,
+                            }
+                        )
                     # Replay stage end
-                    queue.put_nowait({
-                        "type": "stage_end",
-                        "stage": node_id,
-                        "status": stage.status.value,
-                        "error": stage.error,
-                    })
-                elif stage.status == StageStatus.running:
-                    queue.put_nowait({
-                        "type": "stage_start",
-                        "stage": node_id,
-                        "tool": stage.tool,
-                    })
-                    for line in stage.stderr_lines:
-                        queue.put_nowait({
-                            "type": "stderr",
+                    queue.put_nowait(
+                        {
+                            "type": "stage_end",
                             "stage": node_id,
-                            "line": line,
-                        })
+                            "status": stage.status.value,
+                            "error": stage.error,
+                        }
+                    )
+                elif stage.status == StageStatus.running:
+                    queue.put_nowait(
+                        {
+                            "type": "stage_start",
+                            "stage": node_id,
+                            "tool": stage.tool,
+                        }
+                    )
+                    for line in stage.stderr_lines:
+                        queue.put_nowait(
+                            {
+                                "type": "stderr",
+                                "stage": node_id,
+                                "line": line,
+                            }
+                        )
 
             # If pipeline already done, signal immediately
             if state.status != PipelineStatus.running:
-                queue.put_nowait({
-                    "type": "done",
-                    "status": state.status.value,
-                    "error": state.error,
-                })
+                queue.put_nowait(
+                    {
+                        "type": "done",
+                        "status": state.status.value,
+                        "error": state.error,
+                    }
+                )
                 queue.put_nowait(None)
 
         return queue
@@ -327,11 +341,14 @@ class PipelineRunner:
             # Mark stage as running
             stage.status = StageStatus.running
             stage.started_at = datetime.now(timezone.utc)
-            self._broadcast(pipeline_id, {
-                "type": "stage_start",
-                "stage": node_id,
-                "tool": node.tool,
-            })
+            self._broadcast(
+                pipeline_id,
+                {
+                    "type": "stage_start",
+                    "stage": node_id,
+                    "tool": node.tool,
+                },
+            )
 
             try:
                 result = await self._run_stage(
@@ -344,27 +361,33 @@ class PipelineRunner:
                 stage.finished_at = datetime.now(timezone.utc)
                 stage.error = str(exc)
 
-                self._broadcast(pipeline_id, {
-                    "type": "stage_end",
-                    "stage": node_id,
-                    "status": "failed",
-                    "error": str(exc),
-                })
+                self._broadcast(
+                    pipeline_id,
+                    {
+                        "type": "stage_end",
+                        "stage": node_id,
+                        "status": "failed",
+                        "error": str(exc),
+                    },
+                )
 
                 # Mark remaining stages as skipped
                 current_idx = order.index(node_id)
-                for remaining_id in order[current_idx + 1:]:
+                for remaining_id in order[current_idx + 1 :]:
                     state.stages[remaining_id].status = StageStatus.skipped
 
                 state.status = PipelineStatus.failed
                 state.finished_at = datetime.now(timezone.utc)
                 state.error = f"Stage {node_id!r} ({node.tool}) failed: {exc}"
 
-                self._broadcast(pipeline_id, {
-                    "type": "done",
-                    "status": "failed",
-                    "error": state.error,
-                })
+                self._broadcast(
+                    pipeline_id,
+                    {
+                        "type": "done",
+                        "status": "failed",
+                        "error": state.error,
+                    },
+                )
                 self._broadcast_done(pipeline_id)
                 return
 
@@ -375,11 +398,14 @@ class PipelineRunner:
         # Persist each stage result to ScanStore
         self._persist_results(state)
 
-        self._broadcast(pipeline_id, {
-            "type": "done",
-            "status": "complete",
-            "error": None,
-        })
+        self._broadcast(
+            pipeline_id,
+            {
+                "type": "done",
+                "status": "complete",
+                "error": None,
+            },
+        )
         self._broadcast_done(pipeline_id)
 
     async def _run_stage(
@@ -403,7 +429,10 @@ class PipelineRunner:
             raise RuntimeError(f"Missing required parameter for {tool}: {exc}") from exc
 
         proc = await asyncio.create_subprocess_exec(
-            sys.executable, script, *cli_args, "--no-save",
+            sys.executable,
+            script,
+            *cli_args,
+            "--no-save",
             stdin=asyncio.subprocess.PIPE if stdin_data else asyncio.subprocess.DEVNULL,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
@@ -423,20 +452,23 @@ class PipelineRunner:
                 break
             line = line_bytes.decode(errors="replace").rstrip("\n")
             stage.stderr_lines.append(line)
-            self._broadcast(pipeline_id, {
-                "type": "stderr",
-                "stage": stage.node_id,
-                "line": line,
-            })
+            self._broadcast(
+                pipeline_id,
+                {
+                    "type": "stderr",
+                    "stage": stage.node_id,
+                    "line": line,
+                },
+            )
 
         # Wait for process to finish and capture stdout
         stdout_bytes, _ = await proc.communicate()
-        stdout_text = stdout_bytes.decode(errors="replace").strip() if stdout_bytes else ""
+        stdout_text = (
+            stdout_bytes.decode(errors="replace").strip() if stdout_bytes else ""
+        )
 
         if proc.returncode != 0:
-            raise RuntimeError(
-                f"Process exited with code {proc.returncode}"
-            )
+            raise RuntimeError(f"Process exited with code {proc.returncode}")
 
         try:
             result_data = json.loads(stdout_text)
@@ -447,12 +479,15 @@ class PipelineRunner:
         stage.status = StageStatus.complete
         stage.finished_at = datetime.now(timezone.utc)
 
-        self._broadcast(pipeline_id, {
-            "type": "stage_end",
-            "stage": stage.node_id,
-            "status": "complete",
-            "error": None,
-        })
+        self._broadcast(
+            pipeline_id,
+            {
+                "type": "stage_end",
+                "stage": stage.node_id,
+                "status": "complete",
+                "error": None,
+            },
+        )
 
         return result_data
 
@@ -468,7 +503,10 @@ class PipelineRunner:
             with store:
                 for node_id in state.execution_order:
                     stage = state.stages[node_id]
-                    if stage.status != StageStatus.complete or stage.result_json is None:
+                    if (
+                        stage.status != StageStatus.complete
+                        or stage.result_json is None
+                    ):
                         continue
 
                     entry = TOOL_REGISTRY.get(stage.tool, {})

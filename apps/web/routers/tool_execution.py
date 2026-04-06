@@ -7,7 +7,7 @@ from datetime import datetime
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, Field
 
-from apps.web.services.tool_runner import ScanStatus, runner
+from apps.web.services.tool_runner import runner
 
 router = APIRouter(prefix="/api/runs", tags=["runs"])
 

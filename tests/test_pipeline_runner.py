@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import sys
 
 import pytest
 
@@ -185,7 +184,9 @@ class TestPipelineRunner:
             await runner.start_pipeline(defn)
 
     @pytest.mark.asyncio
-    async def test_successful_single_stage(self, runner: PipelineRunner, monkeypatch) -> None:
+    async def test_successful_single_stage(
+        self, runner: PipelineRunner, monkeypatch
+    ) -> None:
         """A single-node pipeline that succeeds."""
         fake_result = {"domain": "example.com", "subdomains": []}
 
@@ -196,10 +197,14 @@ class TestPipelineRunner:
                 returncode=0,
             )
 
-        monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_create_subprocess_exec)
+        monkeypatch.setattr(
+            asyncio, "create_subprocess_exec", fake_create_subprocess_exec
+        )
 
         defn = PipelineDefinition(
-            nodes=[PipelineNode(id="dns1", tool="dns", params={"domain": "example.com"})],
+            nodes=[
+                PipelineNode(id="dns1", tool="dns", params={"domain": "example.com"})
+            ],
             edges=[],
         )
         state = await runner.start_pipeline(defn)
@@ -215,7 +220,9 @@ class TestPipelineRunner:
         assert final.stages["dns1"].result_json == fake_result
 
     @pytest.mark.asyncio
-    async def test_stage_failure_stops_pipeline(self, runner: PipelineRunner, monkeypatch) -> None:
+    async def test_stage_failure_stops_pipeline(
+        self, runner: PipelineRunner, monkeypatch
+    ) -> None:
         """When a stage fails, subsequent stages are skipped."""
 
         async def fake_create_subprocess_exec(*args, **kwargs):
@@ -225,7 +232,9 @@ class TestPipelineRunner:
                 returncode=1,
             )
 
-        monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_create_subprocess_exec)
+        monkeypatch.setattr(
+            asyncio, "create_subprocess_exec", fake_create_subprocess_exec
+        )
 
         defn = PipelineDefinition(
             nodes=[
@@ -245,7 +254,9 @@ class TestPipelineRunner:
         assert "dns1" in final.error
 
     @pytest.mark.asyncio
-    async def test_two_stage_pipeline_passes_data(self, runner: PipelineRunner, monkeypatch) -> None:
+    async def test_two_stage_pipeline_passes_data(
+        self, runner: PipelineRunner, monkeypatch
+    ) -> None:
         """Verify that stage 1 output is available to stage 2 via stdin."""
         dns_result = {"domain": "example.com", "ips": ["10.0.0.1"]}
         port_result = {"results": [{"host": "10.0.0.1", "port": 443}]}
@@ -270,7 +281,9 @@ class TestPipelineRunner:
                     capture_stdin=captured_stdin,
                 )
 
-        monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_create_subprocess_exec)
+        monkeypatch.setattr(
+            asyncio, "create_subprocess_exec", fake_create_subprocess_exec
+        )
 
         defn = PipelineDefinition(
             nodes=[
@@ -300,7 +313,9 @@ class TestPipelineRunner:
                 returncode=0,
             )
 
-        monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_create_subprocess_exec)
+        monkeypatch.setattr(
+            asyncio, "create_subprocess_exec", fake_create_subprocess_exec
+        )
 
         defn = PipelineDefinition(
             nodes=[PipelineNode(id="dns1", tool="dns", params={"domain": "x.com"})],
@@ -331,7 +346,9 @@ class TestPipelineRunner:
         assert "line2" in stderr_lines
 
     @pytest.mark.asyncio
-    async def test_get_pipeline_returns_none_for_unknown(self, runner: PipelineRunner) -> None:
+    async def test_get_pipeline_returns_none_for_unknown(
+        self, runner: PipelineRunner
+    ) -> None:
         assert runner.get_pipeline("nonexistent") is None
 
 
@@ -388,7 +405,9 @@ class _FakeProcess:
         self._stdout = stdout
         self.stderr = _FakeStderr(stderr)
         self.returncode = returncode
-        self.stdin = _FakeStdin(capture_stdin) if capture_stdin is not None else _FakeStdin()
+        self.stdin = (
+            _FakeStdin(capture_stdin) if capture_stdin is not None else _FakeStdin()
+        )
 
     async def communicate(self) -> tuple[bytes, bytes]:
         return self._stdout, b""

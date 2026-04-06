@@ -20,6 +20,7 @@ class PortScanResult(BaseModel):
 
 class DnsResult(BaseModel):
     """Minimal DNS scan result shape for testing the cross-reference lookup."""
+
     name: str
     subdomains: list[dict]
 
@@ -79,7 +80,9 @@ class TestSQLiteStore:
     def test_load_latest_scan_by_target_with_comma(self, store: SQLiteStore) -> None:
         """Targets containing commas are stored and retrieved correctly."""
         result = FakeResult(name="scan1", values=[])
-        store.save_scan(tool="ports", result=result, targets=["host,with,commas", "clean"])
+        store.save_scan(
+            tool="ports", result=result, targets=["host,with,commas", "clean"]
+        )
 
         latest = store.load_latest_scan(tool="ports", target="host,with,commas")
         assert latest is not None
@@ -88,14 +91,18 @@ class TestSQLiteStore:
         # Partial match must not hit
         assert store.load_latest_scan(tool="ports", target="host") is None
 
-    def test_load_latest_scan_by_target_no_substring_match(self, store: SQLiteStore) -> None:
+    def test_load_latest_scan_by_target_no_substring_match(
+        self, store: SQLiteStore
+    ) -> None:
         """Searching for 10.0.0.1 must not match a scan targeting 10.0.0.10."""
         result = FakeResult(name="scan1", values=[])
         store.save_scan(tool="ports", result=result, targets=["10.0.0.10"])
 
         assert store.load_latest_scan(tool="ports", target="10.0.0.1") is None
 
-    def test_load_latest_scan_rejects_domain_and_target(self, store: SQLiteStore) -> None:
+    def test_load_latest_scan_rejects_domain_and_target(
+        self, store: SQLiteStore
+    ) -> None:
         with pytest.raises(ValueError, match="domain or target, not both"):
             store.load_latest_scan(tool="dns", domain="example.com", target="10.0.0.1")
 
@@ -221,7 +228,8 @@ class TestFactory:
 
         db_path = str(tmp_path / "auto.db")
         patched_config = db_mod.DEFAULT_CONFIG.replace(
-            "/data/stackshield.db", db_path,
+            "/data/stackshield.db",
+            db_path,
         )
         monkeypatch.setattr(db_mod, "DEFAULT_CONFIG", patched_config)
 
@@ -243,7 +251,9 @@ class TestFactory:
 
 class TestShouldSave:
     def test_no_save_flag_wins(self, config_file: str) -> None:
-        result, _ = should_save(save_flag=True, no_save_flag=True, config_path=config_file)
+        result, _ = should_save(
+            save_flag=True, no_save_flag=True, config_path=config_file
+        )
         assert result is False
 
     def test_save_flag_forces_save(self, config_file: str) -> None:
@@ -286,13 +296,15 @@ class TestLoadDbTargets:
         """Seed a DNS scan and a port scan that share an IP."""
         dns_result = DnsResult(
             name="example.com",
-            subdomains=[{
-                "name": "example.com",
-                "dns_records": {
-                    "a": [{"ip_address": "10.0.0.1"}, {"ip_address": "10.0.0.2"}],
-                    "aaaa": [{"ipv6_address": "::1"}],
-                },
-            }],
+            subdomains=[
+                {
+                    "name": "example.com",
+                    "dns_records": {
+                        "a": [{"ip_address": "10.0.0.1"}, {"ip_address": "10.0.0.2"}],
+                        "aaaa": [{"ipv6_address": "::1"}],
+                    },
+                }
+            ],
         )
         store.save_scan(tool="dns", result=dns_result, domain="example.com")
 
@@ -309,6 +321,7 @@ class TestLoadDbTargets:
         self._seed_dns_and_ports(store)
 
         import apps.certs.certs as certs_mod
+
         monkeypatch.setattr(certs_mod, "get_store", lambda **kw: store)
 
         targets = certs_mod._load_db_targets("example.com")
@@ -321,12 +334,14 @@ class TestLoadDbTargets:
         store = SQLiteStore(path=":memory:")
         dns_result = DnsResult(
             name="example.com",
-            subdomains=[{
-                "name": "example.com",
-                "dns_records": {
-                    "a": [{"ip_address": "10.0.0.1"}, {"ip_address": "10.0.0.2"}],
-                },
-            }],
+            subdomains=[
+                {
+                    "name": "example.com",
+                    "dns_records": {
+                        "a": [{"ip_address": "10.0.0.1"}, {"ip_address": "10.0.0.2"}],
+                    },
+                }
+            ],
         )
         store.save_scan(tool="dns", result=dns_result, domain="example.com")
 
@@ -337,9 +352,12 @@ class TestLoadDbTargets:
                 {"host": "10.0.0.2", "port": 443},
             ],
         )
-        store.save_scan(tool="ports", result=port_scan, targets=["10.0.0.1", "10.0.0.2"])
+        store.save_scan(
+            tool="ports", result=port_scan, targets=["10.0.0.1", "10.0.0.2"]
+        )
 
         import apps.certs.certs as certs_mod
+
         monkeypatch.setattr(certs_mod, "get_store", lambda **kw: store)
 
         targets = certs_mod._load_db_targets("example.com")
@@ -350,6 +368,7 @@ class TestLoadDbTargets:
 
     def test_returns_none_when_store_disabled(self, monkeypatch) -> None:
         import apps.certs.certs as certs_mod
+
         monkeypatch.setattr(certs_mod, "get_store", lambda **kw: None)
 
         assert certs_mod._load_db_targets("example.com") is None
@@ -357,6 +376,7 @@ class TestLoadDbTargets:
     def test_returns_none_when_no_dns_scan(self, monkeypatch) -> None:
         store = SQLiteStore(path=":memory:")
         import apps.certs.certs as certs_mod
+
         monkeypatch.setattr(certs_mod, "get_store", lambda **kw: store)
 
         assert certs_mod._load_db_targets("example.com") is None
@@ -366,14 +386,17 @@ class TestLoadDbTargets:
         store = SQLiteStore(path=":memory:")
         dns_result = DnsResult(
             name="example.com",
-            subdomains=[{
-                "name": "example.com",
-                "dns_records": {"a": [{"ip_address": "10.0.0.99"}]},
-            }],
+            subdomains=[
+                {
+                    "name": "example.com",
+                    "dns_records": {"a": [{"ip_address": "10.0.0.99"}]},
+                }
+            ],
         )
         store.save_scan(tool="dns", result=dns_result, domain="example.com")
 
         import apps.certs.certs as certs_mod
+
         monkeypatch.setattr(certs_mod, "get_store", lambda **kw: store)
 
         assert certs_mod._load_db_targets("example.com") is None
@@ -389,7 +412,9 @@ class TestCLIPersistenceRoundTrip:
         result = FakeResult(name="integration", values=[42, 99])
 
         scan_id = store.save_scan(
-            tool="dns", result=result, domain="test.com",
+            tool="dns",
+            result=result,
+            domain="test.com",
             targets=["10.0.0.1", "10.0.0.2"],
         )
 

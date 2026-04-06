@@ -47,7 +47,11 @@ def _parse_whois(raw: str) -> WhoisInfo:
         elif lower.startswith("created:") and creation_date is None:
             creation_date = _parse_date(stripped.split(":", 1)[1])
 
-        elif (lower.startswith("registry expiry date:") or lower.startswith("expiry date:") or lower.startswith("expiration date:")) and expiration_date is None:
+        elif (
+            lower.startswith("registry expiry date:")
+            or lower.startswith("expiry date:")
+            or lower.startswith("expiration date:")
+        ) and expiration_date is None:
             creation_date_str = stripped.split(":", 1)[1]
             expiration_date = _parse_date(creation_date_str)
 
@@ -95,12 +99,14 @@ SUBPROCESS_TIMEOUT = 30
 async def get_whois_info(domain: str) -> WhoisInfo:
     try:
         proc = await asyncio.create_subprocess_exec(
-            "whois", domain,
+            "whois",
+            domain,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
         stdout, stderr = await asyncio.wait_for(
-            proc.communicate(), timeout=SUBPROCESS_TIMEOUT,
+            proc.communicate(),
+            timeout=SUBPROCESS_TIMEOUT,
         )
         raw = stdout.decode(errors="replace")
         return _parse_whois(raw)
