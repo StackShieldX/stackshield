@@ -11,10 +11,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from apps.web.routers.scans import router as scans_router
+from apps.web.routers.tool_execution import router as tool_execution_router
 
 app = FastAPI(title="StackShield", version="0.1.0")
 
 app.include_router(scans_router)
+app.include_router(tool_execution_router)
 
 # CORS: allow Vite dev server and production origins
 app.add_middleware(
