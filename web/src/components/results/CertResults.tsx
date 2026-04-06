@@ -4,6 +4,9 @@
  *   { domain, mode, ct_entries: [...], tls_results: [...] }
  */
 
+import CertTimeline from "./CertTimeline";
+import CertChainTree from "./CertChainTree";
+
 interface TLSCertInfo {
   host: string;
   port: number;
@@ -170,6 +173,16 @@ export default function CertResults({ data }: CertResultsProps) {
           </div>
         )}
       </div>
+
+      {/* Certificate timeline visualization */}
+      {totalCerts > 0 && (
+        <CertTimeline tlsResults={tlsResults} ctEntries={ctEntries} />
+      )}
+
+      {/* TLS chain tree visualization */}
+      {tlsResults.length > 0 && (
+        <CertChainTree tlsResults={tlsResults} />
+      )}
 
       {/* TLS certificates */}
       {tlsResults.length > 0 && (
