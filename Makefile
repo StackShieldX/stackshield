@@ -77,6 +77,7 @@ endif
 web: ## Launch the web UI on http://localhost:8080
 	./ssx.sh web
 
+
 db-list: ## List stored scans ([TOOL=dns] [DOMAIN=example.com])
 	./ssx.sh db list $(if $(TOOL),--tool $(TOOL)) $(if $(DOMAIN),--domain $(DOMAIN))
 

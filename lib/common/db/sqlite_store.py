@@ -81,12 +81,30 @@ class SQLiteStore(ScanStore):
                 (SCHEMA_VERSION,),
             )
             self._conn.commit()
-        elif row["version"] != SCHEMA_VERSION:
+        else:
+            stored = row["version"]
+            if stored < SCHEMA_VERSION:
+                self._migrate(stored)
+            elif stored > SCHEMA_VERSION:
+                raise RuntimeError(
+                    f"Database schema version {stored} is newer than "
+                    f"supported version {SCHEMA_VERSION}. "
+                    f"Upgrade stackshield to use this database."
+                )
+
+    def _migrate(self, from_version: int) -> None:
+        """Apply sequential migrations from from_version to SCHEMA_VERSION."""
+        # Future migrations go here:
+        # if from_version < 2:
+        #     self._conn.execute("ALTER TABLE ...")
+        #     from_version = 2
+        if from_version != SCHEMA_VERSION:
             raise RuntimeError(
-                f"Database schema version {row['version']} does not match "
-                f"expected version {SCHEMA_VERSION}. "
-                f"Delete the database file or upgrade stackshield."
+                f"Migration from schema v{from_version} to "
+                f"v{SCHEMA_VERSION} not yet implemented"
             )
+        self._conn.execute("UPDATE schema_version SET version = ?", (SCHEMA_VERSION,))
+        self._conn.commit()
 
     def save_scan(
         self,

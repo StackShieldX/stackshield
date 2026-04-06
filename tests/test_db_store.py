@@ -193,15 +193,15 @@ class TestSQLiteStore:
         assert row is not None
         assert row["version"] == 1
 
-    def test_mismatched_schema_version_raises(self, tmp_path) -> None:
+    def test_future_schema_version_raises(self, tmp_path) -> None:
         db_path = str(tmp_path / "future.db")
-        # Create a DB with a different schema version
+        # Create a DB with a future schema version
         s = SQLiteStore(path=db_path)
         s._conn.execute("UPDATE schema_version SET version = 999")
         s._conn.commit()
         s.close()
 
-        with pytest.raises(RuntimeError, match="does not match"):
+        with pytest.raises(RuntimeError, match="newer than supported"):
             SQLiteStore(path=db_path)
 
 
@@ -213,8 +213,18 @@ class TestPipelineStore:
 
         now = datetime.now(timezone.utc)
         stages = [
-            {"scan_id": "scan-1", "node_id": "dns1", "tool": "dns", "execution_order": 0},
-            {"scan_id": "scan-2", "node_id": "ports1", "tool": "ports", "execution_order": 1},
+            {
+                "scan_id": "scan-1",
+                "node_id": "dns1",
+                "tool": "dns",
+                "execution_order": 0,
+            },
+            {
+                "scan_id": "scan-2",
+                "node_id": "ports1",
+                "tool": "ports",
+                "execution_order": 1,
+            },
         ]
         store.save_pipeline_run(
             pipeline_id="pipe-1",
@@ -254,7 +264,12 @@ class TestPipelineStore:
             started_at=now,
             error="stage failed",
             stages=[
-                {"scan_id": None, "node_id": "n1", "tool": "ports", "execution_order": 0},
+                {
+                    "scan_id": None,
+                    "node_id": "n1",
+                    "tool": "ports",
+                    "execution_order": 0,
+                },
             ],
         )
 
@@ -308,7 +323,12 @@ class TestPipelineStore:
             finished_at=now,
             error="Stage 'dns1' failed",
             stages=[
-                {"scan_id": None, "node_id": "dns1", "tool": "dns", "execution_order": 0},
+                {
+                    "scan_id": None,
+                    "node_id": "dns1",
+                    "tool": "dns",
+                    "execution_order": 0,
+                },
             ],
         )
 
@@ -337,7 +357,12 @@ class TestPipelineStore:
             finished_at=now,
             stages=[
                 {"scan_id": "s1", "node_id": "n1", "tool": "dns", "execution_order": 0},
-                {"scan_id": "s2", "node_id": "n2", "tool": "ports", "execution_order": 1},
+                {
+                    "scan_id": "s2",
+                    "node_id": "n2",
+                    "tool": "ports",
+                    "execution_order": 1,
+                },
             ],
         )
 
