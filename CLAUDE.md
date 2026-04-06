@@ -20,6 +20,15 @@ Each tool produces JSON output so results can be piped and composed.
 ```
 stackshield/
 ├── apps/              # CLI entry points — one folder per tool
+│   └── web/           # Web UI backend (FastAPI)
+│       ├── server.py  # ASGI entry point
+│       ├── routers/   # REST + WebSocket endpoints
+│       └── services/  # Pipeline runner, tool runner
+├── web/               # Web UI frontend (React + TypeScript + Vite)
+│   └── src/
+│       ├── pages/     # Route-level components (Dashboard, Pipelines, etc.)
+│       ├── components/# Shared UI components (pipeline builder, result panels)
+│       └── api/       # API client
 ├── lib/               # Shared business logic
 │   ├── common/
 │   │   ├── entities/  # Pydantic data models shared across all tools
@@ -37,6 +46,8 @@ stackshield/
 - **Persistence lives in `lib/common/db/`** — abstract `ScanStore` interface (`base.py`), SQLite default (`sqlite_store.py`), and factory/config logic (`__init__.py`).
 - **Service logic lives in `lib/<tool>/services/`** — each file wraps a CLI tool or external source.
 - **CLI entry points live in `apps/<tool>/`** — responsible only for arg parsing and orchestration.
+- **Web backend lives in `apps/web/`** — FastAPI server with routers for pipelines, scans, targets, and tool execution. Pipeline runner orchestrates multi-tool workflows with WebSocket progress.
+- **Web frontend lives in `web/`** — React + TypeScript + Vite app. Pages: Dashboard, New Scan, History, Targets, Pipelines. The pipeline builder uses react-flow for a visual DAG editor.
 - **All output goes to stdout as JSON.** Logs, warnings, and errors go to stderr.
 - **Everything runs in Docker** via `ssx.sh`. No tool should require local installation.
 

@@ -140,7 +140,13 @@ Use `--no-db` to skip the automatic DB lookup, or `--stdin` / `-p` to provide ta
 
 ## Web UI
 
-StackShield includes a web dashboard for running tools and viewing results in the browser.
+StackShield includes a web dashboard for running tools and viewing results in the browser. Features include:
+
+- **Dashboard** -- scan activity, target coverage, tool breakdown, and quick-launch cards
+- **New Scan** -- configure and launch individual tool runs with live output
+- **History** -- browse and search past scan results
+- **Targets** -- view all scanned domains with drill-down into per-target scan history
+- **Pipelines** -- visual DAG builder for chaining tools (e.g. DNS -> Ports -> Certs) with automatic target propagation and real-time execution progress via WebSocket
 
 ### Quick Start
 
