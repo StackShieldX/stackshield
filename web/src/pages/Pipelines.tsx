@@ -39,6 +39,7 @@ import { savePipeline } from "../components/pipeline/storage";
 import {
   TOOLS,
   VALID_CONNECTIONS,
+  DOMAIN_KEYS,
   type ToolName,
   type ToolNodeData,
   type NodeStatus,
@@ -103,6 +104,46 @@ export default function Pipelines() {
   );
 
   // -----------------------------------------------------------------------
+  // Keep upstreamTools in sync on each node whenever edges change
+  // -----------------------------------------------------------------------
+
+  useEffect(() => {
+    setNodes((nds) =>
+      nds.map((n) => {
+        const incoming = edges
+          .filter((e) => e.target === n.id)
+          .map((e) => {
+            const src = nds.find((s) => s.id === e.source);
+            return src ? getNodeData(src).tool : null;
+          })
+          .filter((t): t is ToolName => t !== null);
+
+        const current = (n.data as ToolNodeData).upstreamTools;
+        if (
+          current?.length === incoming.length &&
+          current.every((t, i) => t === incoming[i])
+        ) {
+          return n;
+        }
+
+        return { ...n, data: { ...n.data, upstreamTools: incoming } };
+      }),
+    );
+  }, [edges, setNodes]);
+
+  // Upstream tools for the currently selected node (for ParamPanel)
+  const upstreamTools = useMemo(() => {
+    if (!selectedNodeId) return [];
+    return edges
+      .filter((e) => e.target === selectedNodeId)
+      .map((e) => {
+        const sourceNode = nodes.find((n) => n.id === e.source);
+        return sourceNode ? getNodeData(sourceNode).tool : null;
+      })
+      .filter((t): t is ToolName => t !== null);
+  }, [selectedNodeId, edges, nodes]);
+
+  // -----------------------------------------------------------------------
   // Node selection
   // -----------------------------------------------------------------------
 
@@ -160,8 +201,38 @@ export default function Pipelines() {
           eds,
         ),
       );
+
+      // Auto-populate target's domain/target from the source node
+      const sourceNode = nodes.find((n) => n.id === connection.source);
+      const targetNode = nodes.find((n) => n.id === connection.target);
+      if (!sourceNode || !targetNode) return;
+
+      const sourceData = getNodeData(sourceNode);
+      const targetData = getNodeData(targetNode);
+      const sourceKey = DOMAIN_KEYS[sourceData.tool];
+      const targetKey = DOMAIN_KEYS[targetData.tool];
+      const sourceValue = sourceData.params[sourceKey];
+
+      if (sourceValue && !targetData.params[targetKey]) {
+        setNodes((nds) =>
+          nds.map((n) =>
+            n.id === connection.target
+              ? {
+                  ...n,
+                  data: {
+                    ...n.data,
+                    params: {
+                      ...getNodeData(n).params,
+                      [targetKey]: sourceValue,
+                    },
+                  },
+                }
+              : n,
+          ),
+        );
+      }
     },
-    [setEdges],
+    [setEdges, nodes, setNodes],
   );
 
   // -----------------------------------------------------------------------
@@ -219,15 +290,40 @@ export default function Pipelines() {
 
   const handleParamUpdate = useCallback(
     (nodeId: string, params: Record<string, string>) => {
-      setNodes((nds) =>
-        nds.map((n) =>
-          n.id === nodeId
-            ? { ...n, data: { ...n.data, params } }
-            : n,
-        ),
-      );
+      setNodes((nds) => {
+        // Update the edited node
+        const updated = nds.map((n) =>
+          n.id === nodeId ? { ...n, data: { ...n.data, params } } : n,
+        );
+
+        // Propagate domain/target to downstream nodes with empty fields
+        const node = updated.find((n) => n.id === nodeId);
+        if (!node) return updated;
+
+        const tool = getNodeData(node).tool;
+        const sourceKey = DOMAIN_KEYS[tool];
+        const sourceValue = params[sourceKey];
+        if (!sourceValue) return updated;
+
+        const downstream = edges.filter((e) => e.source === nodeId);
+        if (downstream.length === 0) return updated;
+
+        return updated.map((n) => {
+          if (!downstream.some((e) => e.target === n.id)) return n;
+          const targetData = getNodeData(n);
+          const targetKey = DOMAIN_KEYS[targetData.tool];
+          if (targetData.params[targetKey]) return n;
+          return {
+            ...n,
+            data: {
+              ...n.data,
+              params: { ...targetData.params, [targetKey]: sourceValue },
+            },
+          };
+        });
+      });
     },
-    [setNodes],
+    [setNodes, edges],
   );
 
   // -----------------------------------------------------------------------
@@ -514,6 +610,7 @@ export default function Pipelines() {
               onUpdate={handleParamUpdate}
               onDelete={handleDeleteNode}
               disabled={!isEditing}
+              upstreamTools={upstreamTools}
             />
           ) : (
             <div className="flex h-full items-center justify-center">
@@ -649,6 +746,7 @@ export default function Pipelines() {
           fitView
           deleteKeyCode={isEditing ? ["Backspace", "Delete"] : []}
           className="bg-surface-950"
+          proOptions={{ hideAttribution: true }}
           defaultEdgeOptions={{
             animated: true,
             style: { stroke: "#6366f1", strokeWidth: 2 },

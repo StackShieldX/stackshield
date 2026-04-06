@@ -28,6 +28,10 @@ TOOL_REGISTRY: dict[str, dict[str, Any]] = {
         "args_fn": lambda p: ["-d", p["domain"]],
         "domain_key": "domain",
     },
+    # TODO: Allow the port scanner to read targets from stdin (piped DNS
+    # results) so that when chained after DNS in a pipeline the "targets"
+    # param becomes optional -- matching how the certs tool already infers
+    # TLS targets from upstream scan data via --stdin.
     "ports": {
         "script": "apps/port_scan/port.py",
         "args_fn": lambda p: [

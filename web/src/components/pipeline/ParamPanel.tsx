@@ -6,7 +6,7 @@
  */
 
 import { useCallback } from "react";
-import { TOOLS, type ToolName, type ToolNodeData } from "./types";
+import { TOOLS, getHiddenFields, type ToolName, type ToolNodeData } from "./types";
 
 interface ParamPanelProps {
   nodeId: string;
@@ -14,6 +14,7 @@ interface ParamPanelProps {
   onUpdate: (nodeId: string, params: Record<string, string>) => void;
   onDelete: (nodeId: string) => void;
   disabled?: boolean;
+  upstreamTools?: ToolName[];
 }
 
 export default function ParamPanel({
@@ -22,8 +23,11 @@ export default function ParamPanel({
   onUpdate,
   onDelete,
   disabled,
+  upstreamTools,
 }: ParamPanelProps) {
   const toolDef = TOOLS[data.tool as ToolName];
+  const hiddenFields = getHiddenFields(data.tool, upstreamTools ?? []);
+  const visibleFields = toolDef?.fields.filter((f) => !hiddenFields.has(f.name)) ?? [];
 
   const handleFieldChange = useCallback(
     (fieldName: string, value: string) => {
@@ -65,7 +69,7 @@ export default function ParamPanel({
 
       {/* Parameter fields */}
       <div className="space-y-3">
-        {toolDef.fields.map((field) => (
+        {visibleFields.map((field) => (
           <div key={field.name}>
             <label
               htmlFor={`param-${nodeId}-${field.name}`}
@@ -91,6 +95,18 @@ export default function ParamPanel({
           </div>
         ))}
       </div>
+
+      {/* Note about fields inferred from upstream */}
+      {hiddenFields.size > 0 && (
+        <div className="rounded-md bg-surface-800/50 border border-surface-700 px-3 py-2">
+          <p className="text-xs text-surface-400">
+            {Array.from(hiddenFields)
+              .map((f) => toolDef.fields.find((fd) => fd.name === f)?.label ?? f)
+              .join(", ")}{" "}
+            will be inferred from upstream scan results.
+          </p>
+        </div>
+      )}
     </div>
   );
 }
