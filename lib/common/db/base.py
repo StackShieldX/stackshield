@@ -95,6 +95,29 @@ class ScanStore(ABC):
         ...
 
     @abstractmethod
+    def list_targets(self, q: str | None = None) -> list[dict]:
+        """Return aggregated target info across all scans.
+
+        Each entry contains: domain, scan_count, tools (list of tool names),
+        and last_scanned_at.  When *q* is given, only domains containing that
+        substring (case-insensitive) are returned.
+        """
+        ...
+
+    @abstractmethod
+    def load_scans_by_domain(
+        self,
+        domain: str,
+        tool: str | None = None,
+    ) -> list[dict]:
+        """Return all scans for *domain*, ordered by started_at descending.
+
+        Each row includes the full result_json.  When *tool* is given, only
+        scans from that tool are returned.
+        """
+        ...
+
+    @abstractmethod
     def close(self) -> None:
         """Release any resources held by the store."""
         ...
