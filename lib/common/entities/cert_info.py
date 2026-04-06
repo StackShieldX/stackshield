@@ -32,6 +32,7 @@ class TLSCertInfo(BaseModel):
     is_self_signed: bool
     is_expired: bool
     hostname_mismatch: bool
+    error: str | None = None
 
 
 class CertsResult(BaseModel):

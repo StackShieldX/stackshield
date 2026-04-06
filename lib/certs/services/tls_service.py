@@ -353,8 +353,8 @@ def _parse_der_cert(der: bytes) -> dict:
             off, length = fields["extensions"]
             result["san_names"] = _extract_san_from_extensions(der, off, length)
 
-    except (ValueError, IndexError, struct.error):
-        pass
+    except (ValueError, IndexError, struct.error) as exc:
+        print(f"[tls] DER parse error: {exc}", file=sys.stderr)
 
     return result
 
@@ -430,8 +430,9 @@ async def analyze_tls(host: str, port: int = 443) -> TLSCertInfo:
         await writer.wait_closed()
 
         if not cert_der:
-            print(f"[tls] no certificate from {host}:{port}", file=sys.stderr)
-            return _error_result(host, port)
+            msg = f"no certificate returned by {host}:{port}"
+            print(f"[tls] {msg}", file=sys.stderr)
+            return _error_result(host, port, msg)
 
         parsed = _parse_der_cert(cert_der)
         subject_cn = parsed["subject"]
@@ -462,11 +463,12 @@ async def analyze_tls(host: str, port: int = 443) -> TLSCertInfo:
         )
 
     except Exception as exc:
-        print(f"[tls] error connecting to {host}:{port}: {exc}", file=sys.stderr)
-        return _error_result(host, port)
+        msg = f"error connecting to {host}:{port}: {exc}"
+        print(f"[tls] {msg}", file=sys.stderr)
+        return _error_result(host, port, msg)
 
 
-def _error_result(host: str, port: int) -> TLSCertInfo:
+def _error_result(host: str, port: int, error: str = "") -> TLSCertInfo:
     """Return a TLSCertInfo with sentinel/default values for error cases."""
     return TLSCertInfo(
         host=host,
@@ -483,6 +485,7 @@ def _error_result(host: str, port: int) -> TLSCertInfo:
         is_self_signed=False,
         is_expired=False,
         hostname_mismatch=False,
+        error=error or "failed to retrieve certificate",
     )
 
 

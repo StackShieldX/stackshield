@@ -24,6 +24,7 @@ interface TLSCertInfo {
   is_self_signed: boolean;
   is_expired: boolean;
   hostname_mismatch: boolean;
+  error?: string | null;
 }
 
 interface CTEntry {
@@ -281,6 +282,7 @@ export default function CertTimeline({ tlsResults, ctEntries }: CertTimelineProp
     const out: TimelineEntry[] = [];
 
     tlsResults.forEach((cert, i) => {
+      if (cert.error) return;
       const nb = new Date(cert.not_before).getTime();
       const na = new Date(cert.not_after).getTime();
       if (isNaN(nb) || isNaN(na)) return;
