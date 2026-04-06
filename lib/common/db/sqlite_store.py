@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS scans (
 
 CREATE INDEX IF NOT EXISTS idx_scans_tool_domain ON scans(tool, domain);
 CREATE INDEX IF NOT EXISTS idx_scans_started_at ON scans(started_at);
+CREATE INDEX IF NOT EXISTS idx_scans_domain ON scans(domain);
 """
 
 
@@ -205,6 +206,68 @@ class SQLiteStore(ScanStore):
         cursor = self._conn.execute(f"DELETE FROM scans {where}", params)
         self._conn.commit()
         return cursor.rowcount
+
+    def list_targets(self, q: str | None = None) -> list[dict]:
+        where = "WHERE domain IS NOT NULL"
+        params: list[str] = []
+        if q is not None:
+            where += " AND domain LIKE ?"
+            params.append(f"%{q}%")
+
+        rows = self._conn.execute(
+            f"""SELECT domain,
+                       COUNT(*)              AS scan_count,
+                       GROUP_CONCAT(DISTINCT tool) AS tools_csv,
+                       MAX(started_at)        AS last_scanned_at
+                FROM scans
+                {where}
+                GROUP BY domain
+                ORDER BY last_scanned_at DESC""",
+            params,
+        ).fetchall()
+
+        return [
+            {
+                "domain": row["domain"],
+                "scan_count": row["scan_count"],
+                "tools": row["tools_csv"].split(",") if row["tools_csv"] else [],
+                "last_scanned_at": row["last_scanned_at"],
+            }
+            for row in rows
+        ]
+
+    def load_scans_by_domain(
+        self,
+        domain: str,
+        tool: str | None = None,
+    ) -> list[dict]:
+        clauses = ["domain = ?"]
+        params: list[str] = [domain]
+
+        if tool is not None:
+            clauses.append("tool = ?")
+            params.append(tool)
+
+        where = "WHERE " + " AND ".join(clauses)
+
+        rows = self._conn.execute(
+            f"""SELECT id, tool, domain, targets, started_at, finished_at,
+                       status, result_json
+                FROM scans
+                {where}
+                ORDER BY started_at DESC""",
+            params,
+        ).fetchall()
+
+        results: list[dict] = []
+        for row in rows:
+            entry = dict(row)
+            # Parse result_json from string to dict for the response
+            raw = entry.pop("result_json", None)
+            entry["result_json"] = json.loads(raw) if raw else None
+            results.append(entry)
+
+        return results
 
     def close(self) -> None:
         self._conn.close()
